@@ -5,6 +5,8 @@
 ## Read
 
 ./context
+- `HISTORY.md` — Workspace changelog (what was built, when, and by whom)
+- `docs/_index.md` — Documentation routing index (find relevant docs for any system here)
 
 ## Summary
 

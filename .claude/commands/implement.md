@@ -59,6 +59,20 @@ plan_path: $ARGUMENTS (path to the plan file, e.g., `plans/2026-01-28-add-guest-
 
 ---
 
+### Phase 3b: Documentation Check
+
+After validation, check if documentation needs updating:
+
+1. Read `docs/_index.md` to see what systems already have docs
+2. If changes created a new system or significantly modified an existing one:
+   - Create a new doc using the template in `docs/_templates/doc-system-template.md`
+   - Add an entry to `docs/_index.md`
+3. If a documented system was changed, update its doc and add a dated History entry
+4. Update `HISTORY.md` with what was implemented
+5. Stage and commit any doc updates separately: `docs: update documentation for {system}`
+
+---
+
 ### Phase 4: Update Plan Status
 
 After implementation, update the plan file:
