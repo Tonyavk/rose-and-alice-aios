@@ -11,6 +11,14 @@
 | Outstanding invoices | NZD 7,515 (9 invoices) | 2026-05-11 |
 | Invoices paid MTD | 0 | 2026-05-11 |
 
+## Website Traffic (Google Analytics)
+| Metric | Value | As Of |
+|--------|-------|-------|
+| Sessions | No data | 2026-05-10 |
+| Users | No data | 2026-05-10 |
+| New users | No data | 2026-05-10 |
+| Page views | No data | 2026-05-10 |
+
 ## Clients & Pipeline
 | Metric | Value | As Of |
 |--------|-------|-------|
@@ -94,6 +102,8 @@
 | client_list | 2026-05-11 | Connected |
 | client_snapshot | 2026-05-11 | Connected |
 | fx_rates | 2026-05-08 | Connected |
+| ga4_daily | 2026-05-10 | Connected |
+| ga4_sources | — | Empty |
 | leads_list | 2026-05-11 | Connected |
 | mailchimp_campaigns | 2026-05-11 | Connected |
 | mailchimp_snapshot | 2026-05-11 | Connected |

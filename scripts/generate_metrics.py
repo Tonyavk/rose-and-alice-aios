@@ -98,6 +98,40 @@ def section_fx_rates(conn):
 
 # --- CUSTOMIZATION ZONE ---
 
+def section_ga4(conn):
+    """Google Analytics — website traffic snapshot."""
+    if not table_exists(conn, "ga4_daily"):
+        return []
+    row = query_one(conn, "SELECT * FROM ga4_daily ORDER BY date DESC LIMIT 1")
+    if not row:
+        return []
+    lines = ["## Website Traffic (Google Analytics)"]
+    lines.append("| Metric | Value | As Of |")
+    lines.append("|--------|-------|-------|")
+    lines.append(f"| Sessions | {fmt_number(row['sessions'])} | {row['date']} |")
+    lines.append(f"| Users | {fmt_number(row['total_users'])} | {row['date']} |")
+    lines.append(f"| New users | {fmt_number(row['new_users'])} | {row['date']} |")
+    lines.append(f"| Page views | {fmt_number(row['page_views'])} | {row['date']} |")
+    if row['engagement_rate'] is not None:
+        lines.append(f"| Engagement rate | {fmt_pct(row['engagement_rate'] * 100)} | {row['date']} |")
+    lines.append("")
+
+    sources = query_all(conn, f"""
+        SELECT source, medium, sessions, users FROM ga4_sources
+        WHERE date = '{row['date']}'
+        ORDER BY sessions DESC LIMIT 8
+    """)
+    if sources:
+        lines.append("### Top Traffic Sources")
+        lines.append("| Source | Medium | Sessions | Users |")
+        lines.append("|--------|--------|----------|-------|")
+        for s in sources:
+            lines.append(f"| {s['source']} | {s['medium']} | {fmt_number(s['sessions'])} | {fmt_number(s['users'])} |")
+        lines.append("")
+
+    return lines
+
+
 def section_xero(conn):
     """Xero revenue — MTD, last month, outstanding invoices."""
     if not table_exists(conn, "xero_daily"):
@@ -215,6 +249,7 @@ def section_mailchimp(conn):
 # Register all section functions here. Claude adds new ones during install.
 SECTIONS = [
     section_xero,
+    section_ga4,
     section_clients,
     section_mailchimp,
     section_fx_rates,
