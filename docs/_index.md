@@ -14,7 +14,7 @@
 
 | Condition | Doc | Summary |
 |-----------|-----|---------|
-| _(docs will appear here as you build systems — the /commit command adds them automatically)_ | | |
+| Working with data pipeline, collectors, Xero, metrics, database queries | [docs/data-pipeline.md](data-pipeline.md) | DataOS — daily collection from Xero, Google Sheets, Mailchimp into SQLite |
 
 ## Integrations
 

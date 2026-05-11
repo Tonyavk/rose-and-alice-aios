@@ -8,6 +8,18 @@
 
 ---
 
+## 2026-05-11
+
+### DataOS Installed — Live Business Data Pipeline
+- Connected Xero (KaTi Ltd / Rose & Alice Creative) — revenue MTD, last month, outstanding invoices
+- Connected Google Sheets client tracker — 20 active clients, 14 leads in pipeline
+- Connected Mailchimp — 217 subscribers, 53% open rate
+- Set up daily 6am automation via macOS launchd (`config/com.aios.data-collect.plist`)
+- `context/group/key-metrics.md` now auto-generates with live numbers after every collection run
+- Fixed key-metrics.md to show clients, Mailchimp, and revenue sections (were missing)
+
+---
+
 ## 2026-05-03
 
 ### InfraOS Setup
