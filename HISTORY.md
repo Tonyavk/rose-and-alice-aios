@@ -17,6 +17,7 @@
 - Set up daily 6am automation via macOS launchd (`config/com.aios.data-collect.plist`)
 - `context/group/key-metrics.md` now auto-generates with live numbers after every collection run
 - Fixed key-metrics.md to show clients, Mailchimp, and revenue sections (were missing)
+- Added Google Analytics (GA4) collector via OAuth — sessions, users, page views, traffic sources
 
 ---
 

@@ -28,10 +28,12 @@ collect_xero.py   collect_clients.py  collect_mailchimp.py
 | `scripts/collect_xero.py` | Pulls revenue, invoices, outstanding amounts from Xero |
 | `scripts/collect_clients.py` | Reads client tracker & leads from Google Sheets |
 | `scripts/collect_mailchimp.py` | Pulls subscriber stats and campaign performance |
+| `scripts/collect_google_analytics.py` | Pulls daily sessions, users, page views, traffic sources from GA4 |
 | `scripts/collect_fx_rates.py` | Daily NZD/USD and other exchange rates (no auth needed) |
 | `scripts/generate_metrics.py` | Reads database → writes `context/group/key-metrics.md` |
 | `scripts/db.py` | SQLite connection manager and query helpers |
 | `scripts/xero_auth.py` | One-time OAuth setup for Xero (run once, stores tokens) |
+| `scripts/ga4_auth.py` | One-time OAuth setup for Google Analytics (run once, stores tokens) |
 | `data/data.db` | SQLite database (gitignored) |
 | `context/group/key-metrics.md` | Auto-generated metrics file loaded by /prime |
 | `credentials/xero_tokens.json` | Xero OAuth tokens (gitignored, refreshed automatically) |
@@ -97,6 +99,8 @@ cat data/collect.log
 | `leads_list` | clients | Leads pipeline with notes |
 | `mailchimp_snapshot` | mailchimp | Subscriber count, open/click rates |
 | `mailchimp_campaigns` | mailchimp | Recent campaign performance |
+| `ga4_daily` | google_analytics | Daily sessions, users, page views, engagement |
+| `ga4_sources` | google_analytics | Top traffic sources (source/medium breakdown) |
 | `fx_rates` | fx_rates | Daily exchange rates |
 
 ## Dependencies
@@ -109,3 +113,4 @@ cat data/collect.log
 | Date | Change |
 |------|--------|
 | 2026-05-11 | Initial install — Xero, Google Sheets (clients), Mailchimp, FX rates |
+| 2026-05-11 | Added Google Analytics (GA4) collector via OAuth |
