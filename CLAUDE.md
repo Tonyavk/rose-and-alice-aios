@@ -153,6 +153,32 @@ Example: `/share the daily brief system`
 
 ---
 
+## Installed Systems
+
+### DataOS — Live Data Pipeline
+- Database: `data/data.db` (SQLite)
+- Collectors: Xero, Google Sheets (clients), Mailchimp, GA4
+- Schedule: Daily at 6am via `~/Library/LaunchAgents/com.aios.data-collect.plist`
+- Key metrics auto-generated to `context/group/key-metrics.md` after each run
+- Run manually: `python3 scripts/collect.py`
+
+### ProductivityOS — GTD Task Management
+- Files: `gtd/` (dashboard, inbox, projects, next-actions, waiting-for, someday-maybe, areas)
+- Commands: `/process` (empty inbox), `/review` (weekly review)
+- Contexts: @me, @claude, @calls, @team, @errands, @think, @record
+- Refresh dashboard: `python3 scripts/refresh_dashboard.py`
+- Capture to inbox: `python3 scripts/inbox_writer.py "task text"`
+
+### IntelOS — Meeting & Slack Intelligence
+- Database: `data/data.db` (same DB — tables: `meetings`, `slack_messages`, `staff_registry`)
+- Scripts: `scripts/intel/`
+- Meeting recorder: not connected yet — add Fireflies or Fathom when ready
+- Slack: not connected yet
+- Search meetings: `python3 -c "import sys; sys.path.insert(0,'scripts/intel'); from db import get_connection, search_meetings; conn=get_connection(); print(search_meetings(conn,'keyword'))"`
+- Run collection: `python3 scripts/intel/collect_all.py`
+
+---
+
 ## Context Summary
 
 **Business:** Rose and Alice Creative — NZ digital marketing (paid ads, strategy, content, SEO, email, UX)
