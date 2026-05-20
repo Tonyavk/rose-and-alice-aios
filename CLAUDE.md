@@ -143,6 +143,18 @@ Reads the plan, executes each step in order, validates the work, and updates the
 
 Example: `/implement plans/2026-01-28-competitor-analysis-command.md`
 
+### /explore [idea]
+
+**Purpose:** Interactive feature discovery. Takes an idea and walks you through shaping it into a clear, scoped concept ready to build.
+
+Runs through 5 stages: Discovery → Research → Shape → Scope → Output. Produces a feature doc in `plans/` ready for `/implement`.
+
+### /brainstorm [topic]
+
+**Purpose:** Workspace scanner and opportunity finder. Scans your tasks, processes, and current setup to find manual work that could be automated.
+
+Ranks opportunities by impact and feasibility, deep-dives the top picks, and points you to `/explore` or `/implement` for the next step. Run without arguments to scan everything, or with a topic to focus on a specific area.
+
 ### /share [system or feature]
 
 **Purpose:** Package a system or feature from your workspace for sharing.
@@ -176,6 +188,15 @@ Example: `/share the daily brief system`
 - Slack: not connected yet
 - Search meetings: `python3 -c "import sys; sys.path.insert(0,'scripts/intel'); from db import get_connection, search_meetings; conn=get_connection(); print(search_meetings(conn,'keyword'))"`
 - Run collection: `python3 scripts/intel/collect_all.py`
+
+### Daily Brief — Morning Intelligence Report
+- Preset: Solo Operator (short, punchy — 3 sections)
+- Schedule: Daily at 8am via `~/Library/LaunchAgents/com.aios.daily-brief.plist`
+- Delivery: Telegram (pending live test when Telegram bot is confirmed)
+- Briefs saved to: `outputs/daily-brief/{date}.md`
+- Funnel map: `context/funnel.md`
+- Run manually: `python3 scripts/daily_brief.py`
+- Dry run (no send): `python3 scripts/daily_brief.py --test`
 
 ---
 

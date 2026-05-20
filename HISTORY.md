@@ -8,6 +8,25 @@
 
 ---
 
+## 2026-05-20 (continued)
+
+### Daily Brief Installed — Morning Intelligence Report
+- Created `context/funnel.md` mapping Rose and Alice Creative's funnel (5 stages: traffic, leads, clients, revenue, email)
+- Installed 5 scripts: `daily_brief.py`, `metrics.py`, `prompt.py`, `dashboard.py`, `deliver.py`
+- Configured Solo Operator preset (short/punchy — 3 sections, ~500 words)
+- Gemini API key configured and verified
+- LaunchAgent installed: runs at 8am daily (`com.aios.daily-brief.plist`)
+- Telegram delivery ready — live test pending (Tonya to confirm when home)
+- Cost: ~$0.001 per brief (~$0.03/month)
+
+### Slash Commands Installed — Brainstorm & Explore
+- Installed `/brainstorm` — scans workspace and ranks automation opportunities
+- Installed `/explore` — interactive feature shaping before building
+- Both documented in CLAUDE.md
+
+### InfraOS Verified — Already Installed
+- Git, GitHub, HISTORY.md, docs/, and /commit all confirmed present and working
+
 ## 2026-05-20
 
 ### ProductivityOS Installed — GTD Task Management
