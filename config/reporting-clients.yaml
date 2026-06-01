@@ -1,0 +1,118 @@
+clients:
+  - name: Vivéa Skincare
+    slug: vivea-skincare
+    industry: Beauty & Skincare
+    campaign_objective: Brand Awareness, Sales
+    logo: vivea-skincare.png
+    platforms:
+      meta:
+        account_id: "1275482973765975"
+      google_ads:
+        customer_id: "4174717031"
+
+  - name: Aqua Spa
+    slug: aquaspa
+    industry: Health & Wellness
+    campaign_objective: Service Bookings
+    logo: aquaspa.png
+    platforms:
+      meta:
+        account_id: "956490350465982"
+
+  - name: Alpha 1 Builders
+    slug: alpha-1-builders
+    industry: Construction & Trades
+    campaign_objective: Lead Generation
+    logo: alpha-1-builders.png
+    platforms:
+      meta:
+        account_id: "139577415846568"
+      google_ads:
+        customer_id: "6775944314"
+
+  - name: Alden
+    slug: alden
+    industry: Aged Care
+    campaign_objective: Brand Awareness, Lead Generation
+    logo: alden.png  # MANUAL: drop PNG into config/client-logos/alden.png (Drive link is a folder)
+    platforms:
+      meta:
+        account_id: "3686930434948954"
+
+  - name: Brows & Beyond
+    slug: brows-and-beyond
+    industry: Beauty & Cosmetic Tattooing
+    campaign_objective: Service Bookings
+    logo: brows-and-beyond.png  # MANUAL: drop PNG into config/client-logos/brows-and-beyond.png (Drive link is a folder)
+    platforms:
+      google_ads:
+        customer_id: "9083966033"
+
+  - name: Childlife Essentials
+    slug: childlife-essentials
+    industry: Children's Health Products
+    campaign_objective: Sales
+    logo: childlife-essentials.png
+    platforms:
+      meta:
+        account_id: "498711934016392"
+
+  - name: Moving On
+    slug: moving-on
+    industry: Relocation Services
+    campaign_objective: Lead Generation
+    logo: moving-on.png
+    platforms:
+      meta:
+        account_id: "1266295657557216"
+      google_ads:
+        customer_id: "1319545019"
+
+  - name: NZ VRod Parts
+    slug: nz-vrod-parts
+    industry: Automotive
+    campaign_objective: Sales
+    logo: nz-vrod-parts.png
+    platforms:
+      meta:
+        account_id: "316935903"
+      google_ads:
+        customer_id: "9912739425"
+
+  - name: Sparsh
+    slug: sparsh
+    industry: Beauty & Wellness
+    campaign_objective: Sales
+    logo: sparsh.png
+    platforms:
+      google_ads:
+        customer_id: "7100086331"
+
+  - name: The Shed Specialists Co.
+    slug: shed-specialists
+    industry: Construction & Trades
+    campaign_objective: Lead Generation
+    logo: shed-specialists.png
+    platforms:
+      meta:
+        account_id: "976145016539562"
+      google_ads:
+        customer_id: "5650810739"
+
+  - name: World Class Fabrication
+    slug: worldclass-fabrication
+    industry: Manufacturing & Engineering
+    campaign_objective: Lead Generation
+    logo: worldclass-fabrication.png
+    platforms:
+      meta:
+        account_id: "480000494754139"
+
+  - name: rfynd
+    slug: rfynd
+    industry: Technology
+    campaign_objective: Brand Awareness
+    logo: rfynd.png
+    platforms:
+      meta:
+        account_id: "974521841116818"

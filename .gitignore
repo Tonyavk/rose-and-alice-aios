@@ -40,3 +40,6 @@ data/*.log
 
 # --- Node (if applicable) ---
 node_modules/
+
+# --- Generated outputs (PDFs, reports — large binaries) ---
+outputs/

@@ -198,6 +198,22 @@ Example: `/share the daily brief system`
 - Run manually: `python3 scripts/daily_brief.py`
 - Dry run (no send): `python3 scripts/daily_brief.py --test`
 
+### ReportingOS — Monthly Client Reports
+- Scripts: `scripts/reporting/`
+- Client config: `config/reporting-clients.yaml` (add clients here — slug, Meta account ID, Google Ads customer ID)
+- Logos: `config/client-logos/{slug}.png`
+- Output: `outputs/client-reports/YYYY-MM/{slug}.pdf`
+- Narrative (editable): `outputs/client-reports/YYYY-MM/{slug}-summary.txt` — edit this before finalising
+
+**Workflow (each month):**
+1. Run: `python scripts/reporting/run_reports.py --period 2026-05 --client vivea-skincare`
+2. Edit the narrative: `outputs/client-reports/2026-05/vivea-skincare-summary.txt`
+3. Finalise PDF: `python scripts/reporting/run_reports.py --no-collect --finalize --client vivea-skincare --period 2026-05`
+
+**Flags:** `--period YYYY-MM` · `--client slug` · `--no-collect` (skip data pull) · `--finalize` (use saved txt) · `--html-only`
+
+**Credentials:** `GOOGLE_ADS_*` and `META_ACCESS_TOKEN` in `.env` — Meta token expires every ~60 days, regenerate at Meta Business Manager
+
 ---
 
 ## Context Summary
