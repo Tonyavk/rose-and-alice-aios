@@ -8,6 +8,20 @@
 
 ---
 
+## 2026-06-01
+
+### ReportingOS — Monthly Client Reporting Completed
+- 12 clients fully configured with Meta/Google Ads account IDs, logos, industries, and campaign types
+- Campaign types and Meta reporting level (Campaign vs Ad Set) read from Google Sheet — Tonya maintains it, no code changes needed
+- Ad set level reporting built for clients with geographic breakdowns (e.g. Moving On franchise locations)
+- Google Ads now captures `all_conversions` alongside direct conversions
+- AI narrative uses exact campaign names and sheet context — no hallucinated labels
+- Meta access token auto-refreshes monthly via LaunchAgent — never expires manually again
+- Edit workflow: Claude writes summary → Tonya edits `.txt` → `--finalize` regenerates PDF
+- First reports run for Moving On, Vivéa Skincare, Shed Specialists, Sparsh (May 2026)
+
+---
+
 ## 2026-05-20 (continued)
 
 ### Daily Brief Installed — Morning Intelligence Report
