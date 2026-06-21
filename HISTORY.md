@@ -10,6 +10,15 @@
 
 ## 2026-06-21
 
+### ReportingOS — Shopping Reports + Monthly Automation
+- Built out **shopping reports** to match the brand polish (one page, grand totals, metric key, collapse):
+  - Hero: Purchases · AOV · Total Spend · ROAS
+  - Google at ad-group level — Impressions · Clicks · All Conv. · All Conv. Value · Cost/All Conv. · Cost (+ plain-English key)
+  - Meta at ad-set level — Reach · Website Purchases · Avg. Purchase Value · Cost/Purchase · Amount Spent
+  - Grey section-summary lines removed; ecommerce framing throughout
+- **Summary upgrade (both types):** added two short first-person recommendations (one concrete move, one positive/observational), more value/insight, kept factual month-over-month + hedged industry guide; output cleaned of preambles/titles/separators
+- **Monthly automation:** new `scripts/reporting/monthly_run.py` + `com.aios.monthly-reports` launchd job runs on the 1st of each month at 12pm — generates all 12 drafts and emails Tonya that they're staged for review (does not finalise). Email via SMTP/app password; verified with a test send.
+
 ### ReportingOS — Brand Report Refinements
 - Brand tables collapse single-ad-group / single-ad-set campaigns to one row (campaign name); campaigns with multiple keep the indented grouping — keeps busy clients on one page (verified on Shed Specialists)
 - Meta "Results" column now labelled "Results / Leads" (two lines) to be specific

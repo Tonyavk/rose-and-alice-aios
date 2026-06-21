@@ -216,8 +216,8 @@ REPORT_TEMPLATE = """<!DOCTYPE html>
 
     /* ── Multi-word table headers may wrap to two lines ── */
     th.wrap { white-space: normal; }
-{% if report_type == 'brand' %}
-    /* ── Brand reports: compress vertically to fit on one page ── */
+{% if report_type == 'brand' or report_type == 'shopping' %}
+    /* ── Brand & shopping reports: compress vertically to fit on one page ── */
     @page { margin: 4mm 0; }
     .header { padding: 8px 40px; }
     .metric { padding: 6px 28px; }
@@ -265,11 +265,13 @@ REPORT_TEMPLATE = """<!DOCTYPE html>
   <div class="section">
     <div class="section-header">
       <div class="section-title">Google Ads</div>
+      {% if report_type != 'shopping' %}
       <div class="section-summary">
         {{ google_totals.impressions | format_int }} impressions &nbsp;·&nbsp;
         {{ google_totals.clicks | format_int }} clicks &nbsp;·&nbsp;
         ${{ google_totals.cost | format_2dp }}
       </div>
+      {% endif %}
     </div>
     <table>
       {% if report_type == 'brand' %}
@@ -322,33 +324,49 @@ REPORT_TEMPLATE = """<!DOCTYPE html>
       {% else %}
       <thead>
         <tr>
-          <th>Campaign</th>
+          <th>Ad group</th>
           <th class="num">Impressions</th>
           <th class="num">Clicks</th>
-          <th class="num">CTR</th>
-          <th class="num">Avg CPC</th>
-          <th class="num">Cost</th>
-          <th class="num">Conv.</th>
           <th class="num">All Conv.</th>
-          <th class="num">AOV</th>
-          <th class="num">ROAS</th>
+          <th class="num wrap">All Conv. Value</th>
+          <th class="num wrap">Cost / All Conv.</th>
+          <th class="num">Cost</th>
         </tr>
       </thead>
       <tbody>
+        {% set ns = namespace(last_campaign='') %}
         {% for c in google_campaigns %}
+        {% if c.ad_group_name and not c.is_solo and c.campaign_name != ns.last_campaign %}
+        {% set ns.last_campaign = c.campaign_name %}
+        <tr style="background:#f5f5f5;">
+          <td colspan="7" style="font-weight:700;font-size:11px;padding:6px 8px;border-bottom:1px solid #ddd;">
+            {{ c.campaign_name }}
+          </td>
+        </tr>
+        {% endif %}
         <tr>
-          <td>{{ c.campaign_name }}</td>
+          <td style="{% if c.ad_group_name and not c.is_solo %}padding-left:20px;{% endif %}">
+            {% if c.ad_group_name and not c.is_solo %}{{ c.ad_group_name }}{% else %}{{ c.campaign_name }}{% endif %}
+          </td>
           <td class="num">{{ c.impressions | format_int }}</td>
           <td class="num">{{ c.clicks | format_int }}</td>
-          <td class="num">{{ c.ctr }}%</td>
-          <td class="num">${{ c.avg_cpc | format_2dp }}</td>
-          <td class="num">${{ c.cost | format_2dp }}</td>
-          <td class="num">{{ c.conversions | format_conv }}</td>
           <td class="num">{{ c.all_conversions | format_conv }}</td>
-          <td class="num">{% if c.aov %}${{ c.aov | format_2dp }}{% else %}—{% endif %}</td>
-          <td class="num">{% if c.roas > 0 %}{{ c.roas }}x{% else %}—{% endif %}</td>
+          <td class="num">${{ c.conv_value | format_2dp }}</td>
+          <td class="num">{% if c.cost_per_conv %}${{ c.cost_per_conv | format_2dp }}{% else %}—{% endif %}</td>
+          <td class="num">${{ c.cost | format_2dp }}</td>
         </tr>
         {% endfor %}
+        {% if google_grand %}
+        <tr class="grand-total">
+          <td>Grand total</td>
+          <td class="num">{{ google_grand.impressions | format_int }}</td>
+          <td class="num">{{ google_grand.clicks | format_int }}</td>
+          <td class="num">{{ google_grand.all_conversions | format_conv }}</td>
+          <td class="num">${{ google_grand.conv_value | format_2dp }}</td>
+          <td class="num">{% if google_grand.cost_per_conv %}${{ google_grand.cost_per_conv | format_2dp }}{% else %}—{% endif %}</td>
+          <td class="num">${{ google_grand.cost | format_2dp }}</td>
+        </tr>
+        {% endif %}
       </tbody>
       {% endif %}
     </table>
@@ -361,6 +379,15 @@ REPORT_TEMPLATE = """<!DOCTYPE html>
       <strong>Cost / Conv.</strong> — cost per conversion &nbsp;·&nbsp;
       <strong>Cost</strong> — total amount spent on ads
     </div>
+    {% elif report_type == 'shopping' %}
+    <div class="metric-key">
+      <strong>Impr</strong> — how many times your ads were shown to people &nbsp;·&nbsp;
+      <strong>Clicks</strong> — the number of clicks your ads received &nbsp;·&nbsp;
+      <strong>All Conv.</strong> — purchases made &nbsp;·&nbsp;
+      <strong>All Conv. Value</strong> — value of purchases made &nbsp;·&nbsp;
+      <strong>Cost / All Conv.</strong> — cost per purchase &nbsp;·&nbsp;
+      <strong>Cost</strong> — total amount spent
+    </div>
     {% endif %}
   </div>
   {% endif %}
@@ -370,6 +397,7 @@ REPORT_TEMPLATE = """<!DOCTYPE html>
   <div class="section">
     <div class="section-header">
       <div class="section-title">Meta Ads</div>
+      {% if report_type != 'shopping' %}
       <div class="section-summary">
         {% if report_type == 'brand' and meta_grand %}
         {{ meta_grand.reach | format_int }} reach &nbsp;·&nbsp;
@@ -381,6 +409,7 @@ REPORT_TEMPLATE = """<!DOCTYPE html>
         ${{ meta_totals.spend | format_2dp }}
         {% endif %}
       </div>
+      {% endif %}
     </div>
     {% if report_type == 'brand' %}
     <table>
@@ -427,6 +456,52 @@ REPORT_TEMPLATE = """<!DOCTYPE html>
           <td class="num">${{ meta_grand.spend | format_2dp }}</td>
           <td class="num">{% if meta_grand.results > 0 %}{{ meta_grand.results | format_int }}{% else %}—{% endif %}</td>
           <td class="num">{% if meta_grand.cost_per_result %}${{ meta_grand.cost_per_result | format_2dp }}{% else %}—{% endif %}</td>
+        </tr>
+        {% endif %}
+      </tbody>
+    </table>
+    {% elif report_type == 'shopping' %}
+    <table>
+      <thead>
+        <tr>
+          <th>Ad set</th>
+          <th class="num">Reach</th>
+          <th class="num wrap">Website Purchases</th>
+          <th class="num wrap">Avg. Purchase Value</th>
+          <th class="num wrap">Cost / Purchase</th>
+          <th class="num">Amount Spent</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% set ns = namespace(last_campaign='') %}
+        {% for c in meta_campaigns %}
+        {% if c.adset_name and not c.is_solo and c.campaign_name != ns.last_campaign %}
+        {% set ns.last_campaign = c.campaign_name %}
+        <tr style="background:#f5f5f5;">
+          <td colspan="6" style="font-weight:700;font-size:11px;padding:6px 8px;border-bottom:1px solid #ddd;">
+            {{ c.campaign_name }}
+          </td>
+        </tr>
+        {% endif %}
+        <tr>
+          <td style="{% if c.adset_name and not c.is_solo %}padding-left:20px;{% endif %}">
+            {% if c.adset_name and not c.is_solo %}{{ c.adset_name }}{% else %}{{ c.campaign_name }}{% endif %}
+          </td>
+          <td class="num">{{ c.reach | format_int }}</td>
+          <td class="num">{% if c.results > 0 %}{{ c.results }}{% else %}—{% endif %}</td>
+          <td class="num">{% if c.aov %}${{ c.aov | format_2dp }}{% else %}—{% endif %}</td>
+          <td class="num">{% if c.cost_per_result %}${{ c.cost_per_result | format_2dp }}{% else %}—{% endif %}</td>
+          <td class="num">${{ c.spend | format_2dp }}</td>
+        </tr>
+        {% endfor %}
+        {% if meta_grand %}
+        <tr class="grand-total">
+          <td>Grand total</td>
+          <td class="num">{{ meta_grand.reach | format_int }}</td>
+          <td class="num">{% if meta_grand.results > 0 %}{{ meta_grand.results | format_int }}{% else %}—{% endif %}</td>
+          <td class="num">{% if meta_grand.avg_purchase_value %}${{ meta_grand.avg_purchase_value | format_2dp }}{% else %}—{% endif %}</td>
+          <td class="num">{% if meta_grand.cost_per_result %}${{ meta_grand.cost_per_result | format_2dp }}{% else %}—{% endif %}</td>
+          <td class="num">${{ meta_grand.spend | format_2dp }}</td>
         </tr>
         {% endif %}
       </tbody>
@@ -568,6 +643,29 @@ def _build_hero_metrics(google_rows, meta_rows, report_type=None):
             {"value": f"${total_spend:,.0f}", "label": "Total Spend", "sub": "All platforms"},
         ]
 
+    # Shopping reports: Purchases · AOV · Total Spend · ROAS
+    if report_type == "shopping":
+        purchases = (
+            sum(float(r.get("all_conversions") or 0) for r in google_rows)
+            + sum(int(r.get("results") or 0) for r in meta_rows)
+        )
+        revenue = (
+            sum(float(r.get("conv_value") or 0) for r in google_rows)
+            + sum(float(r.get("purchase_value") or 0) for r in meta_rows)
+        )
+        total_spend = (
+            sum(float(r.get("cost") or 0) for r in google_rows)
+            + sum(float(r.get("spend") or 0) for r in meta_rows)
+        )
+        aov = revenue / purchases if purchases else 0
+        roas = revenue / total_spend if total_spend else 0
+        return [
+            {"value": f"{int(purchases):,}", "label": "Purchases", "sub": None},
+            {"value": (f"${aov:,.2f}" if aov else "—"), "label": "AOV", "sub": "Average order value"},
+            {"value": f"${total_spend:,.0f}", "label": "Total Spend", "sub": "All platforms"},
+            {"value": (f"{roas:.2f}x" if roas else "—"), "label": "ROAS", "sub": None},
+        ]
+
     total_spend = sum(r["cost"] for r in google_rows) + sum(r["spend"] for r in meta_rows)
     total_impr = sum(r["impressions"] for r in google_rows) + sum(r["impressions"] for r in meta_rows)
     total_clicks = sum(r["clicks"] for r in google_rows) + sum(r["clicks"] for r in meta_rows)
@@ -647,6 +745,49 @@ def _mom_block(period, cur, prev):
             lines.append(f"  Meta spend: ${cur['m_spend']:,.2f} (last month ${prev['m_spend']:,.2f})")
         else:
             lines.append("  Meta: no last-month data available - report this month only, no comparison.")
+    return "\n".join(lines) + "\n"
+
+
+def _shopping_totals(google_rows, meta_rows):
+    """Roll up the ecommerce figures a shopping summary compares month-on-month."""
+    g_rev = sum(float(r.get("conv_value") or 0) for r in google_rows)
+    g_cost = sum(float(r.get("cost") or 0) for r in google_rows)
+    m_rev = sum(float(r.get("purchase_value") or 0) for r in meta_rows)
+    m_spend = sum(float(r.get("spend") or 0) for r in meta_rows)
+    purch = (sum(float(r.get("all_conversions") or 0) for r in google_rows)
+             + sum(int(r.get("results") or 0) for r in meta_rows))
+    rev, spend = g_rev + m_rev, g_cost + m_spend
+    return {
+        "g_rows": len(google_rows),
+        "g_purch": sum(float(r.get("all_conversions") or 0) for r in google_rows),
+        "g_rev": g_rev, "g_cost": g_cost,
+        "m_rows": len(meta_rows),
+        "m_purch": sum(int(r.get("results") or 0) for r in meta_rows),
+        "m_rev": m_rev, "m_spend": m_spend,
+        "roas": rev / spend if spend else 0,
+        "aov": rev / purch if purch else 0,
+    }
+
+
+def _shopping_mom_block(period, cur, prev):
+    """Plain-text month-on-month figures block for the shopping prompt."""
+    pl, ppl = period_label(period), period_label(_prev_period(period))
+    lines = [f"Month-on-month figures (this month = {pl}; last month = {ppl}):"]
+    if cur["g_rows"]:
+        if prev["g_rows"]:
+            lines.append(f"  Google purchases: {cur['g_purch']:.1f} (last month {prev['g_purch']:.1f})")
+            lines.append(f"  Google revenue: ${cur['g_rev']:,.2f} (last month ${prev['g_rev']:,.2f})")
+            lines.append(f"  Google spend: ${cur['g_cost']:,.2f} (last month ${prev['g_cost']:,.2f})")
+        else:
+            lines.append("  Google: no last-month data available - report this month only, no comparison.")
+    if cur["m_rows"]:
+        if prev["m_rows"]:
+            lines.append(f"  Meta purchases: {cur['m_purch']} (last month {prev['m_purch']})")
+            lines.append(f"  Meta revenue: ${cur['m_rev']:,.2f} (last month ${prev['m_rev']:,.2f})")
+            lines.append(f"  Meta spend: ${cur['m_spend']:,.2f} (last month ${prev['m_spend']:,.2f})")
+        else:
+            lines.append("  Meta: no last-month data available - report this month only, no comparison.")
+    lines.append(f"  Combined this month: ROAS {cur['roas']:.2f}x, average order value ${cur['aov']:,.2f}")
     return "\n".join(lines) + "\n"
 
 
@@ -744,19 +885,75 @@ Reporting period: {pl}
 Performance data (this month):
 {gb}{mb}
 {mom}
-Write a SHORT summary — 2 short paragraphs, around 4-5 sentences total. Be factual and plain. Cover:
+Write the summary in your own voice as Tonya, speaking directly to the client — around 3 short paragraphs, no more than 6 sentences total. Factual, but warm and genuine. Cover:
 1. The results and spend this period and how they changed versus last month, using ONLY the month-on-month figures above (e.g. "leads rose from 160 to 184", or "cost per lead came down"). This is brand/lead-gen, so there is no sales revenue or ROAS — frame the return around leads/results and cost per result. Only compare a platform if it has last-month data; otherwise just state this month's figures for it.
-2. A brief industry context as a GENERAL guide only, clearly hedged (e.g. "as a rough guide in this sector..."), plus one positive highlight naming a specific campaign or ad set (exact name from the data) that did well.
+2. The value angle: one line on the return the client is getting and what is working, plus a brief industry context as a GENERAL guide only, clearly hedged (e.g. "as a rough guide in this sector..."), and one positive highlight naming a specific campaign or ad set (exact name from the data) that did well.
+3. One or two short recommendations for next month, written in the first person as Tonya ("next month I'll...", "I'd like to..."). Make ONE a concrete move tied to a specific number or named campaign in the data (e.g. putting more budget behind the ad set that delivered the most leads). Make the other a positive, performance-focused observation about something that is working and worth building on - a strong channel, a winning audience, or a result that improved month on month. Keep both realistic and grounded in the data.
 
 STRICT RULES — follow exactly:
+- Write entirely in the first person as Tonya ("I", "we", "I'd recommend"). Never refer to Tonya in the third person. Refer to the client by name, but you are the one speaking.
 - Use ONLY the exact campaign/ad set names and the figures provided above. Never invent names, numbers, or comparisons.
 - For any month-on-month comparison, use ONLY the month-on-month figures provided. If a platform shows "no last-month data", do not compare it — just report this month.
+- Every recommendation must tie back to a real number or named campaign in the data and stay realistic. Do not suggest anything the data does not support.
 - For Meta, refer to reach, landing page views, and leads — not impressions.
 - Industry context must be framed as a general rule of thumb, NOT verified data. Do not state precise benchmark figures as confirmed fact.
-- Avoid sensationalist or vague language. Do not use words like "solid", "strong", "great", "well above", or "smashing". State plain facts.
-- Report figures neutrally and factually. Lead with what improved. Do not use negative or alarming language about any decrease, and do not call anything a problem or underperformance.
+- A little warmth and personality is good, but avoid hype or sensationalist words (no "solid", "strong", "great", "well above", "smashing", "crushing it").
+- Be constructive and positive throughout. Recommendations and observations must focus on strengths and what is working and worth building on. Do NOT point out weak performers, zero-result or zero-revenue items, tracking concerns, or anything framed as a problem to fix or keep an eye on.
 - Do NOT use em dashes (—) or en dashes (–). Use a short hyphen (-) or a comma instead.
-- Plain New Zealand English. Short, to the point, no fluff, no jargon without a plain explanation. Flowing sentences, no bullet points."""
+- Output ONLY the summary paragraphs themselves. No preamble, no introduction, no title or heading, no sign-off, and no separator lines (e.g. no "Here's the summary", no "---").
+- Plain New Zealand English. No fluff, no jargon without a plain explanation. Flowing sentences, no bullet points."""
+
+    if client.get("report_type") == "shopping":
+        cur = _shopping_totals(google_rows, meta_rows)
+        prev = _shopping_totals(prev_google_rows or [], prev_meta_rows or [])
+        mom = _shopping_mom_block(period, cur, prev)
+
+        # Shopping data block — purchases / revenue / spend, ecommerce framing
+        gb = ""
+        if google_rows:
+            gb = (f"Google Ads — {cur['g_purch']:.1f} purchases, ${cur['g_rev']:,.2f} revenue, "
+                  f"${cur['g_cost']:,.2f} spend\n")
+            for r in google_rows:
+                label  = r.get("ad_group_name") or r["campaign_name"]
+                parent = f" [{r['campaign_name']}]" if r.get("ad_group_name") else ""
+                ac = r.get("all_conversions") or 0
+                gb += (f"  • {label}{parent}: {ac:.1f} purchases, "
+                       f"${float(r.get('conv_value') or 0):,.2f} revenue, ${r['cost']:,.2f} spend\n")
+        mb = ""
+        if meta_rows:
+            mb = (f"Meta Ads — {cur['m_purch']} purchases, ${cur['m_rev']:,.2f} revenue, "
+                  f"${cur['m_spend']:,.2f} spend\n")
+            for r in meta_rows:
+                label  = r.get("adset_name") or r["campaign_name"]
+                parent = f" [{r['campaign_name']}]" if r.get("adset_name") else ""
+                mb += (f"  • {label}{parent}: {int(r.get('results') or 0)} purchases, "
+                       f"${float(r.get('purchase_value') or 0):,.2f} revenue, ${r['spend']:,.2f} spend\n")
+
+        return f"""You are Tonya Knight, owner of Rose and Alice Creative, a New Zealand digital marketing agency. You are writing a short, factual performance summary for {client['name']}'s monthly ecommerce/shopping report, sent directly to the client. Write in plain New Zealand English, in your own voice.
+
+Client: {client['name']}
+Industry: {client.get('industry', 'N/A')}
+Reporting period: {pl}
+{intent_block}
+Performance data (this month):
+{gb}{mb}
+{mom}
+Write the summary in your own voice as Tonya, speaking directly to the client — around 3 short paragraphs, no more than 6 sentences total. Factual, but warm and genuine. Cover:
+1. Sales performance this period and how it changed versus last month, using ONLY the month-on-month figures above — focus on revenue, purchases, ROAS (return on ad spend), and spend (e.g. "revenue rose from $X to $Y at a ROAS of Zx"). Only compare a platform if it has last-month data; otherwise just state this month's figures for it.
+2. The value angle: one line on the return the client is getting and what is working, plus a brief industry context as a GENERAL guide only, clearly hedged (e.g. "as a rough guide, a ROAS around Nx is considered healthy in ecommerce"), and one positive highlight naming a specific campaign or ad set (exact name from the data) that drove strong sales or return.
+3. One or two short recommendations for next month, written in the first person as Tonya ("next month I'll...", "I'd like to..."). Make ONE a concrete move tied to a specific number or named campaign in the data (e.g. scaling the ad set with the best return). Make the other a positive, performance-focused observation about something that is working and worth building on - a strong channel, a winning audience, or a result that improved month on month. Keep both realistic and grounded in the data.
+
+STRICT RULES — follow exactly:
+- Write entirely in the first person as Tonya ("I", "we", "I'd recommend"). Never refer to Tonya in the third person. Refer to the client by name, but you are the one speaking.
+- Use ONLY the exact campaign/ad set names and the figures provided above. Never invent names, numbers, or comparisons.
+- For any month-on-month comparison, use ONLY the month-on-month figures provided. If a platform shows "no last-month data", do not compare it — just report this month.
+- Every recommendation must tie back to a real number or named campaign in the data and stay realistic. Do not suggest anything the data does not support.
+- Industry context must be framed as a general rule of thumb, NOT verified data. Do not state precise benchmark figures as confirmed fact.
+- A little warmth and personality is good, but avoid hype or sensationalist words (no "solid", "strong", "great", "well above", "smashing", "crushing it").
+- Be constructive and positive throughout. Recommendations and observations must focus on strengths and what is working and worth building on. Do NOT point out weak performers, zero-result or zero-revenue items, tracking concerns, or anything framed as a problem to fix or keep an eye on.
+- Do NOT use em dashes (—) or en dashes (–). Use a short hyphen (-) or a comma instead.
+- Output ONLY the summary paragraphs themselves. No preamble, no introduction, no title or heading, no sign-off, and no separator lines (e.g. no "Here's the summary", no "---").
+- Plain New Zealand English. No fluff, no jargon without a plain explanation. Flowing sentences, no bullet points."""
 
     return f"""You are Tonya Knight, owner of Rose and Alice Creative, a New Zealand digital marketing agency. You are writing the performance summary section of a monthly report to send directly to your client. Write in your own voice — confident, clear, and client-friendly.
 
@@ -890,6 +1087,8 @@ def generate(client_slug, period=None, html_only=False, conn=None, use_saved_sum
     if narrative:
         # Remove heading lines (##, #, etc.)
         narrative = re.sub(r"^#+\s+.*\n?", "", narrative, flags=re.MULTILINE)
+        # Remove horizontal-rule / separator lines (---, ***)
+        narrative = re.sub(r"^[-*]{3,}\s*$", "", narrative, flags=re.MULTILINE)
         # Convert **bold** to <strong>
         narrative = re.sub(r"\*\*(.+?)\*\*", r"<strong>\1</strong>", narrative)
         # Safety net: never render em/en dashes — use a short hyphen instead
@@ -915,9 +1114,9 @@ def generate(client_slug, period=None, html_only=False, conn=None, use_saved_sum
         row["cost_per_conv"] = round(cost / all_conv, 2) if all_conv > 0 and cost > 0 else None
         google_campaigns.append(row)
 
-    # Brand reports: list Google campaigns (then ad groups) alphabetically,
+    # Brand & shopping reports: list Google campaigns (then ad groups) alphabetically,
     # and flag campaigns with a single ad group so they collapse to one row.
-    if report_type == "brand":
+    if report_type in ("brand", "shopping"):
         google_campaigns.sort(
             key=lambda c: ((c.get("campaign_name") or "").lower(),
                            (c.get("ad_group_name") or "").lower())
@@ -943,9 +1142,9 @@ def generate(client_slug, period=None, html_only=False, conn=None, use_saved_sum
         row["cost_per_result"] = round(spend / results, 2) if results > 0 and spend > 0 else None
         meta_campaigns.append(row)
 
-    # Brand reports: list Meta campaigns (then ad sets) alphabetically,
+    # Brand & shopping reports: list Meta campaigns (then ad sets) alphabetically,
     # and flag campaigns with a single ad set so they collapse to one row.
-    if report_type == "brand":
+    if report_type in ("brand", "shopping"):
         meta_campaigns.sort(
             key=lambda c: ((c.get("campaign_name") or "").lower(),
                            (c.get("adset_name") or "").lower())
@@ -956,7 +1155,7 @@ def generate(client_slug, period=None, html_only=False, conn=None, use_saved_sum
         for c in meta_campaigns:
             c["is_solo"] = _mcounts.get(c.get("campaign_name"), 0) <= 1
 
-    # Grand totals (used by the brand-report total rows)
+    # Grand totals (used by the brand/shopping total rows)
     google_grand = None
     if google_campaigns:
         g_clicks = sum(int(c.get("clicks") or 0) for c in google_campaigns)
@@ -967,6 +1166,7 @@ def generate(client_slug, period=None, html_only=False, conn=None, use_saved_sum
             "clicks": g_clicks,
             "avg_cpc": round(g_cost / g_clicks, 2) if g_clicks else 0,
             "all_conversions": g_allconv,
+            "conv_value": sum(float(c.get("conv_value") or 0) for c in google_campaigns),
             "cost_per_conv": round(g_cost / g_allconv, 2) if g_allconv else None,
             "cost": g_cost,
         }
@@ -976,6 +1176,7 @@ def generate(client_slug, period=None, html_only=False, conn=None, use_saved_sum
         m_spend = sum(float(c.get("spend") or 0) for c in meta_campaigns)
         m_results = sum(int(c.get("results") or 0) for c in meta_campaigns)
         m_lpv = sum(float(c.get("landing_page_views") or 0) for c in meta_campaigns)
+        m_pv = sum(float(c.get("purchase_value") or 0) for c in meta_campaigns)
         meta_grand = {
             "reach": sum(int(c.get("reach") or 0) for c in meta_campaigns),
             "results": m_results,
@@ -983,6 +1184,7 @@ def generate(client_slug, period=None, html_only=False, conn=None, use_saved_sum
             "cost_per_lpv": round(m_spend / m_lpv, 2) if m_lpv else None,
             "spend": m_spend,
             "cost_per_result": round(m_spend / m_results, 2) if m_results else None,
+            "avg_purchase_value": round(m_pv / m_results, 2) if m_results else None,
         }
 
     # Combined totals for breakdown section

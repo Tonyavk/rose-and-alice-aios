@@ -140,8 +140,8 @@ def collect(period=None):
     for client in clients:
         slug = client["slug"]
         customer_id = client["platforms"]["google_ads"]["customer_id"]
-        # Brand reports break down by ad group; others stay at campaign level
-        level = "ad_group" if client.get("report_type") == "brand" else "campaign"
+        # Brand and shopping reports break down by ad group; others stay at campaign level
+        level = "ad_group" if client.get("report_type") in ("brand", "shopping") else "campaign"
         try:
             campaigns = _fetch_campaigns(ads_client, customer_id, start_date, end_date, level)
             results[slug] = campaigns

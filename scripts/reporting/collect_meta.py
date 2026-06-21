@@ -144,8 +144,8 @@ def collect(period=None):
         slug = client["slug"]
         account_id = client["platforms"]["meta"]["account_id"]
         level = campaign_types.get(slug, {}).get("meta_level", "campaign")
-        # Brand reports always report at ad-set level
-        if client.get("report_type") == "brand":
+        # Brand and shopping reports always report at ad-set level
+        if client.get("report_type") in ("brand", "shopping"):
             level = "adset"
         try:
             campaigns = _fetch_insights(account_id, creds["meta_access_token"], start_date, end_date, level)

@@ -210,9 +210,17 @@ Example: `/share the daily brief system`
 - Google: pulled at **ad-group level**, shown campaign → ad group; columns Impressions · Clicks · Avg CPC · All Conv. · Cost/Conv. · Cost, plus grand-total row and a plain-English metric key
 - Meta: pulled at **ad-set level**, shown campaign → ad set (alphabetical); columns Reach · Landing Page Views · Cost/Landing Page · Amount Spent · Results · Cost/Result, plus grand-total row
 - Hero: Website Views (Google clicks + Meta landing page views) · Conversions · Total Spend
-- Summary: ROI, vs industry standards, one positive highlight; short plain NZ English, no negatives, no em dashes
+
+**Shopping reports** (built out — same one-page polish, ecommerce focus):
+- Google: **ad-group level**; columns Impressions · Clicks · All Conv. · All Conv. Value · Cost/All Conv. · Cost, plus grand-total row and metric key
+- Meta: **ad-set level**; columns Reach · Website Purchases · Avg. Purchase Value · Cost/Purchase · Amount Spent, plus grand-total row
+- Hero: Purchases · AOV · Total Spend · ROAS
+- Grey section-summary lines hidden; summary uses ecommerce framing (revenue/ROAS/purchases)
+
+**Both types:**
+- Summary: factual **month-over-month** comparison from the database + a clearly-hedged general industry guide + one positive highlight + two short first-person (Tonya's voice) recommendations — one concrete move, one positive/observational; plain NZ English, no negatives, no sensationalism, no em dashes
+- Single-ad-group / single-ad-set campaigns collapse to one row; campaigns with multiple keep the indented grouping
 - PMax caveat: Performance Max campaigns have no ad groups, so they drop out of the ad-group Google view
-- **Shopping reports** keep the original full-detail layout (campaign level, ROAS/AOV focus)
 
 **Workflow (each month):**
 1. Run: `python scripts/reporting/run_reports.py --period 2026-05 --client vivea-skincare`
@@ -222,6 +230,8 @@ Example: `/share the daily brief system`
 **Flags:** `--period YYYY-MM` · `--client slug` · `--report-type shopping|brand` (run all clients of one type) · `--no-collect` (skip data pull) · `--finalize` (use saved txt) · `--html-only`
 
 **Credentials:** `GOOGLE_ADS_*` and `META_ACCESS_TOKEN` in `.env` — Meta token expires every ~60 days, regenerate at Meta Business Manager
+
+**Monthly automation:** `com.aios.monthly-reports` (launchd) runs `scripts/reporting/monthly_run.py` on the **1st of each month at 12pm** — collects last month, generates all 12 drafts, and emails Tonya that they're staged for review (does NOT finalise). Email via SMTP (`SMTP_*` / `REPORT_NOTIFY_TO` in `.env`, Gmail/Workspace app password). Test email: `.venv/bin/python scripts/reporting/monthly_run.py --email-test`. Plist source: `config/com.aios.monthly-reports.plist`.
 
 ---
 
