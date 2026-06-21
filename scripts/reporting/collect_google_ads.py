@@ -38,14 +38,27 @@ def _build_ads_client(creds):
     return GoogleAdsClient.load_from_dict(cfg)
 
 
-def _fetch_campaigns(ads_client, customer_id, start_date, end_date):
-    """Pull all campaign metrics for a customer over a date range."""
-    service = ads_client.get_service("GoogleAdsService")
-    query = f"""
-        SELECT
+def _fetch_campaigns(ads_client, customer_id, start_date, end_date, level="campaign"):
+    """Pull metrics for a customer over a date range, at campaign or ad-group level."""
+    if level == "ad_group":
+        select = """
             campaign.id,
             campaign.name,
             campaign.advertising_channel_type,
+            ad_group.id,
+            ad_group.name,"""
+        from_clause = "ad_group"
+        status_filter = "ad_group.status IN ('ENABLED', 'PAUSED')"
+    else:
+        select = """
+            campaign.id,
+            campaign.name,
+            campaign.advertising_channel_type,"""
+        from_clause = "campaign"
+        status_filter = "campaign.status IN ('ENABLED', 'PAUSED')"
+
+    query = f"""
+        SELECT{select}
             metrics.impressions,
             metrics.clicks,
             metrics.cost_micros,
@@ -55,9 +68,9 @@ def _fetch_campaigns(ads_client, customer_id, start_date, end_date):
             metrics.all_conversions,
             metrics.conversions_from_interactions_rate,
             metrics.all_conversions_value
-        FROM campaign
+        FROM {from_clause}
         WHERE segments.date BETWEEN '{start_date}' AND '{end_date}'
-            AND campaign.status IN ('ENABLED', 'PAUSED')
+            AND {status_filter}
             AND metrics.impressions > 0
         ORDER BY metrics.cost_micros DESC
     """
@@ -76,6 +89,9 @@ def _fetch_campaigns(ads_client, customer_id, start_date, end_date):
             "campaign_id": str(row.campaign.id),
             "campaign_name": row.campaign.name,
             "campaign_type": row.campaign.advertising_channel_type.name,
+            "ad_group_id": str(row.ad_group.id) if level == "ad_group" else "",
+            "ad_group_name": row.ad_group.name if level == "ad_group" else "",
+            "reporting_level": level,
             "impressions": row.metrics.impressions,
             "clicks": row.metrics.clicks,
             "cost": round(cost, 2),
@@ -124,8 +140,10 @@ def collect(period=None):
     for client in clients:
         slug = client["slug"]
         customer_id = client["platforms"]["google_ads"]["customer_id"]
+        # Brand reports break down by ad group; others stay at campaign level
+        level = "ad_group" if client.get("report_type") == "brand" else "campaign"
         try:
-            campaigns = _fetch_campaigns(ads_client, customer_id, start_date, end_date)
+            campaigns = _fetch_campaigns(ads_client, customer_id, start_date, end_date, level)
             results[slug] = campaigns
         except Exception as e:
             errors.append(f"{slug}: {e}")
@@ -140,8 +158,7 @@ def collect(period=None):
     }
 
 
-def write(conn, result, period):
-    """Write collected Google Ads data to the database."""
+def _create_table(conn):
     conn.execute("""
         CREATE TABLE IF NOT EXISTS google_ads_monthly (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -150,6 +167,8 @@ def write(conn, result, period):
             campaign_id TEXT,
             campaign_name TEXT,
             campaign_type TEXT,
+            ad_group_id TEXT,
+            ad_group_name TEXT,
             impressions INTEGER,
             clicks INTEGER,
             cost REAL,
@@ -160,16 +179,40 @@ def write(conn, result, period):
             conv_rate REAL,
             conv_value REAL,
             roas REAL,
+            reporting_level TEXT DEFAULT 'campaign',
             collected_at TEXT,
-            UNIQUE(period, client_slug, campaign_id)
+            UNIQUE(period, client_slug, campaign_id, ad_group_id)
         )
     """)
-    # Migrate existing tables that predate these columns
-    for col, typedef in [("campaign_type", "TEXT"), ("all_conversions", "REAL")]:
-        try:
-            conn.execute(f"ALTER TABLE google_ads_monthly ADD COLUMN {col} {typedef}")
-        except Exception:
-            pass
+
+
+def _ensure_schema(conn):
+    """Create the table, migrating older versions that lack ad-group support.
+
+    The unique key changed from (period, client_slug, campaign_id) to include
+    ad_group_id, so the table is rebuilt — existing rows are preserved.
+    """
+    row = conn.execute(
+        "SELECT sql FROM sqlite_master WHERE type='table' AND name='google_ads_monthly'"
+    ).fetchone()
+    if row and "ad_group_id" not in (row[0] or ""):
+        old_cols = [r[1] for r in conn.execute("PRAGMA table_info(google_ads_monthly)").fetchall()]
+        conn.execute("ALTER TABLE google_ads_monthly RENAME TO google_ads_monthly_old")
+        _create_table(conn)
+        new_cols = [r[1] for r in conn.execute("PRAGMA table_info(google_ads_monthly)").fetchall()]
+        common = [c for c in old_cols if c in new_cols and c != "id"]
+        collist = ", ".join(common)
+        conn.execute(
+            f"INSERT INTO google_ads_monthly ({collist}) SELECT {collist} FROM google_ads_monthly_old"
+        )
+        conn.execute("DROP TABLE google_ads_monthly_old")
+    else:
+        _create_table(conn)
+
+
+def write(conn, result, period):
+    """Write collected Google Ads data to the database."""
+    _ensure_schema(conn)
 
     if result.get("status") != "success":
         conn.commit()
@@ -179,16 +222,26 @@ def write(conn, result, period):
     records = 0
 
     for slug, campaigns in result["data"].items():
+        # Clear any prior rows for this client/period so a level switch
+        # (campaign ↔ ad_group) can't leave stale, double-counted rows behind.
+        conn.execute(
+            "DELETE FROM google_ads_monthly WHERE period = ? AND client_slug = ?",
+            (period, slug),
+        )
         for c in campaigns:
             conn.execute(
                 "INSERT OR REPLACE INTO google_ads_monthly "
-                "(period, client_slug, campaign_id, campaign_name, campaign_type, impressions, clicks, "
-                "cost, ctr, avg_cpc, conversions, all_conversions, conv_rate, conv_value, roas, collected_at) "
-                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                "(period, client_slug, campaign_id, campaign_name, campaign_type, "
+                "ad_group_id, ad_group_name, impressions, clicks, "
+                "cost, ctr, avg_cpc, conversions, all_conversions, conv_rate, conv_value, roas, "
+                "reporting_level, collected_at) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                 (period, slug, c["campaign_id"], c["campaign_name"], c.get("campaign_type"),
+                 c.get("ad_group_id", ""), c.get("ad_group_name", ""),
                  c["impressions"], c["clicks"], c["cost"], c["ctr"],
                  c["avg_cpc"], c["conversions"], c.get("all_conversions"),
-                 c["conv_rate"], c["conv_value"], c["roas"], collected_at),
+                 c["conv_rate"], c["conv_value"], c["roas"],
+                 c.get("reporting_level", "campaign"), collected_at),
             )
             records += 1
 

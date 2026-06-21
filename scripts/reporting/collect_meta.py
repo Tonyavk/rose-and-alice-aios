@@ -43,7 +43,7 @@ LEAD_ACTIONS = {
 def _fetch_insights(account_id, access_token, start_date, end_date, level="campaign"):
     """Pull campaign insights from the Meta Marketing API."""
     url = f"{META_API_BASE}/act_{account_id}/insights"
-    fields = "campaign_id,campaign_name,impressions,clicks,spend,ctr,cpc,actions,action_values"
+    fields = "campaign_id,campaign_name,reach,impressions,clicks,spend,ctr,cpc,actions,action_values"
     if level == "adset":
         fields = "campaign_id,campaign_name,adset_id,adset_name," + fields.split(",", 2)[2]
     params = {
@@ -61,6 +61,7 @@ def _fetch_insights(account_id, access_token, start_date, end_date, level="campa
     campaigns = []
     for row in raw.get("data", []):
         spend = float(row.get("spend", 0) or 0)
+        reach = int(row.get("reach", 0) or 0)
         impressions = int(row.get("impressions", 0) or 0)
         clicks = int(row.get("clicks", 0) or 0)
         ctr = float(row.get("ctr", 0) or 0)
@@ -74,6 +75,9 @@ def _fetch_insights(account_id, access_token, start_date, end_date, level="campa
         )
         leads = sum(
             float(a["value"]) for a in actions if a["action_type"] in LEAD_ACTIONS
+        )
+        landing_page_views = sum(
+            float(a["value"]) for a in actions if a["action_type"] == "landing_page_view"
         )
         purchase_value = sum(
             float(a["value"]) for a in action_values if a["action_type"] in PURCHASE_ACTIONS
@@ -96,12 +100,14 @@ def _fetch_insights(account_id, access_token, start_date, end_date, level="campa
             "campaign_name": row.get("campaign_name", ""),
             "adset_id":      row.get("adset_id", ""),
             "adset_name":    row.get("adset_name", ""),
+            "reach":         reach,
             "impressions":   impressions,
             "clicks":        clicks,
             "spend":         round(spend, 2),
             "ctr":           round(ctr, 2),
             "cpc":           round(cpc, 2),
             "results":       int(results),
+            "landing_page_views": int(landing_page_views),
             "result_type":   result_type,
             "purchase_value": round(purchase_value, 2),
             "roas":          roas,
@@ -138,6 +144,9 @@ def collect(period=None):
         slug = client["slug"]
         account_id = client["platforms"]["meta"]["account_id"]
         level = campaign_types.get(slug, {}).get("meta_level", "campaign")
+        # Brand reports always report at ad-set level
+        if client.get("report_type") == "brand":
+            level = "adset"
         try:
             campaigns = _fetch_insights(account_id, creds["meta_access_token"], start_date, end_date, level)
             results[slug] = {"data": campaigns, "level": level}
@@ -165,12 +174,14 @@ def write(conn, result, period):
             campaign_name TEXT,
             adset_id TEXT,
             adset_name TEXT,
+            reach INTEGER,
             impressions INTEGER,
             clicks INTEGER,
             spend REAL,
             ctr REAL,
             cpc REAL,
             results INTEGER,
+            landing_page_views INTEGER,
             result_type TEXT,
             purchase_value REAL,
             roas REAL,
@@ -183,6 +194,8 @@ def write(conn, result, period):
     for col, typedef in [
         ("adset_id", "TEXT"),
         ("adset_name", "TEXT"),
+        ("reach", "INTEGER"),
+        ("landing_page_views", "INTEGER"),
         ("reporting_level", "TEXT DEFAULT 'campaign'"),
     ]:
         try:
@@ -200,17 +213,23 @@ def write(conn, result, period):
     for slug, client_result in result["data"].items():
         campaigns = client_result["data"]
         level     = client_result["level"]
+        # Clear prior rows for this client/period so a level switch
+        # (campaign ↔ adset) can't leave stale, double-counted rows behind.
+        conn.execute(
+            "DELETE FROM meta_campaign_monthly WHERE period = ? AND client_slug = ?",
+            (period, slug),
+        )
         for c in campaigns:
             conn.execute(
                 "INSERT OR REPLACE INTO meta_campaign_monthly "
                 "(period, client_slug, campaign_id, campaign_name, adset_id, adset_name, "
-                "impressions, clicks, spend, ctr, cpc, results, result_type, "
+                "reach, impressions, clicks, spend, ctr, cpc, results, landing_page_views, result_type, "
                 "purchase_value, roas, reporting_level, collected_at) "
-                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                 (period, slug, c["campaign_id"], c["campaign_name"],
                  c.get("adset_id", ""), c.get("adset_name", ""),
-                 c["impressions"], c["clicks"], c["spend"], c["ctr"],
-                 c["cpc"], c["results"], c["result_type"],
+                 c.get("reach", 0), c["impressions"], c["clicks"], c["spend"], c["ctr"],
+                 c["cpc"], c["results"], c.get("landing_page_views", 0), c["result_type"],
                  c["purchase_value"], c["roas"], level, collected_at),
             )
             records += 1

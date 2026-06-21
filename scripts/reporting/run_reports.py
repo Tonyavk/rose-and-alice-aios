@@ -32,7 +32,8 @@ import collect_meta
 import generate_report as gen
 
 
-def run(period=None, client_slug=None, html_only=False, no_collect=False, finalize=False):
+def run(period=None, client_slug=None, html_only=False, no_collect=False, finalize=False,
+        report_type=None):
     if period is None:
         period = last_month_period()
 
@@ -83,6 +84,12 @@ def run(period=None, client_slug=None, html_only=False, no_collect=False, finali
             print(f"Error: client '{client_slug}' not found in reporting-clients.yaml")
             conn.close()
             sys.exit(1)
+    if report_type:
+        clients = [c for c in clients if c.get("report_type") == report_type]
+        if not clients:
+            print(f"Error: no clients with report_type '{report_type}' in reporting-clients.yaml")
+            conn.close()
+            sys.exit(1)
 
     generated = []
     failed = []
@@ -128,6 +135,8 @@ if __name__ == "__main__":
     parser.add_argument("--no-collect", action="store_true", help="Skip data pull, use existing DB data")
     parser.add_argument("--finalize", action="store_true",
                         help="Use saved summary .txt instead of calling Claude — for after you've edited the narrative")
+    parser.add_argument("--report-type", default=None, choices=["shopping", "brand"],
+                        help="Only run clients of this type (shopping or brand)")
     args = parser.parse_args()
 
     run(
@@ -136,4 +145,5 @@ if __name__ == "__main__":
         html_only=args.html_only,
         no_collect=args.no_collect,
         finalize=args.finalize,
+        report_type=args.report_type,
     )

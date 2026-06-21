@@ -64,8 +64,8 @@ REPORT_TEMPLATE = """<!DOCTYPE html>
       justify-content: space-between;
       border-bottom: 3px solid #1a1a1a;
     }
-    .logo-wrap { height: 80px; display: flex; align-items: center; }
-    .logo-wrap img { max-height: 80px; max-width: 240px; object-fit: contain; }
+    .logo-wrap { height: 110px; display: flex; align-items: center; }
+    .logo-wrap img { max-height: 110px; max-width: 320px; object-fit: contain; }
     .logo-placeholder {
       font-size: 20px;
       font-weight: 800;
@@ -162,6 +162,23 @@ REPORT_TEMPLATE = """<!DOCTYPE html>
     tbody tr:last-child td { border-bottom: none; }
     .no-data { padding: 24px 0; color: #aaa; font-style: italic; font-size: 12px; }
 
+    /* ── Grand total row ── */
+    tr.grand-total td {
+      border-top: 2px solid #1a1a1a;
+      border-bottom: none;
+      font-weight: 800;
+      color: #1a1a1a;
+    }
+
+    /* ── Metric key (plain-English descriptions) ── */
+    .metric-key {
+      font-size: 9px;
+      line-height: 1.7;
+      color: #999;
+      padding-top: 12px;
+    }
+    .metric-key strong { color: #555; font-weight: 700; }
+
 
     /* ── Narrative ── */
     .narrative {
@@ -196,6 +213,22 @@ REPORT_TEMPLATE = """<!DOCTYPE html>
       border-top: 1px solid #ebebeb;
     }
     .footer strong { color: #888; }
+
+    /* ── Multi-word table headers may wrap to two lines ── */
+    th.wrap { white-space: normal; }
+{% if report_type == 'brand' %}
+    /* ── Brand reports: compress vertically to fit on one page ── */
+    @page { margin: 4mm 0; }
+    .header { padding: 8px 40px; }
+    .metric { padding: 6px 28px; }
+    .metric-value { font-size: 22px; }
+    .section { padding: 8px 40px; }
+    .section-header { margin-bottom: 6px; }
+    td, th { padding: 4px 8px; }
+    .narrative { padding: 12px 40px; }
+    .narrative p { font-size: 10px; line-height: 1.5; margin-bottom: 6px; }
+    .metric-key { padding-top: 8px; }
+{% endif %}
   </style>
 </head>
 <body>
@@ -210,7 +243,7 @@ REPORT_TEMPLATE = """<!DOCTYPE html>
       {% endif %}
     </div>
     <div class="report-meta">
-      <h1>Monthly Performance Report</h1>
+      <h1>Digital Marketing Report</h1>
       <div class="period">{{ period_label }}</div>
       <div class="prepared">Prepared by Rose and Alice Creative</div>
     </div>
@@ -239,6 +272,54 @@ REPORT_TEMPLATE = """<!DOCTYPE html>
       </div>
     </div>
     <table>
+      {% if report_type == 'brand' %}
+      <thead>
+        <tr>
+          <th>Ad group</th>
+          <th class="num">Impressions</th>
+          <th class="num">Clicks</th>
+          <th class="num">Avg CPC</th>
+          <th class="num">All Conv.</th>
+          <th class="num wrap">Cost / Conv.</th>
+          <th class="num">Cost</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% set ns = namespace(last_campaign='') %}
+        {% for c in google_campaigns %}
+        {% if c.ad_group_name and c.campaign_name != ns.last_campaign %}
+        {% set ns.last_campaign = c.campaign_name %}
+        <tr style="background:#f5f5f5;">
+          <td colspan="7" style="font-weight:700;font-size:11px;padding:6px 8px;border-bottom:1px solid #ddd;">
+            {{ c.campaign_name }}
+          </td>
+        </tr>
+        {% endif %}
+        <tr>
+          <td style="{% if c.ad_group_name %}padding-left:20px;{% endif %}">
+            {{ c.ad_group_name if c.ad_group_name else c.campaign_name }}
+          </td>
+          <td class="num">{{ c.impressions | format_int }}</td>
+          <td class="num">{{ c.clicks | format_int }}</td>
+          <td class="num">${{ c.avg_cpc | format_2dp }}</td>
+          <td class="num">{{ c.all_conversions | format_conv }}</td>
+          <td class="num">{% if c.cost_per_conv %}${{ c.cost_per_conv | format_2dp }}{% else %}—{% endif %}</td>
+          <td class="num">${{ c.cost | format_2dp }}</td>
+        </tr>
+        {% endfor %}
+        {% if google_grand %}
+        <tr class="grand-total">
+          <td>Grand total</td>
+          <td class="num">{{ google_grand.impressions | format_int }}</td>
+          <td class="num">{{ google_grand.clicks | format_int }}</td>
+          <td class="num">${{ google_grand.avg_cpc | format_2dp }}</td>
+          <td class="num">{{ google_grand.all_conversions | format_conv }}</td>
+          <td class="num">{% if google_grand.cost_per_conv %}${{ google_grand.cost_per_conv | format_2dp }}{% else %}—{% endif %}</td>
+          <td class="num">${{ google_grand.cost | format_2dp }}</td>
+        </tr>
+        {% endif %}
+      </tbody>
+      {% else %}
       <thead>
         <tr>
           <th>Campaign</th>
@@ -269,7 +350,18 @@ REPORT_TEMPLATE = """<!DOCTYPE html>
         </tr>
         {% endfor %}
       </tbody>
+      {% endif %}
     </table>
+    {% if report_type == 'brand' %}
+    <div class="metric-key">
+      <strong>Impressions</strong> — how many times our ads were shown to people &nbsp;·&nbsp;
+      <strong>Clicks</strong> — amount of clicks to the website &nbsp;·&nbsp;
+      <strong>Avg. CPC</strong> — average cost per click &nbsp;·&nbsp;
+      <strong>All Conv.</strong> — form submits, phone link clicks, and email link clicks (excludes any direct emails or phone calls without clicking on the website) &nbsp;·&nbsp;
+      <strong>Cost / Conv.</strong> — cost per conversion &nbsp;·&nbsp;
+      <strong>Cost</strong> — total amount spent on ads
+    </div>
+    {% endif %}
   </div>
   {% endif %}
 
@@ -279,11 +371,67 @@ REPORT_TEMPLATE = """<!DOCTYPE html>
     <div class="section-header">
       <div class="section-title">Meta Ads</div>
       <div class="section-summary">
+        {% if report_type == 'brand' and meta_grand %}
+        {{ meta_grand.reach | format_int }} reach &nbsp;·&nbsp;
+        {{ meta_grand.results | format_int }} results &nbsp;·&nbsp;
+        ${{ meta_grand.spend | format_2dp }}
+        {% else %}
         {{ meta_totals.impressions | format_int }} impressions &nbsp;·&nbsp;
         {{ meta_totals.clicks | format_int }} clicks &nbsp;·&nbsp;
         ${{ meta_totals.spend | format_2dp }}
+        {% endif %}
       </div>
     </div>
+    {% if report_type == 'brand' %}
+    <table>
+      <thead>
+        <tr>
+          <th>Ad set</th>
+          <th class="num">Reach</th>
+          <th class="num wrap">Landing Page Views</th>
+          <th class="num wrap">Cost / Landing Page</th>
+          <th class="num">Amount Spent</th>
+          <th class="num">Results</th>
+          <th class="num wrap">Cost / Result</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% set ns = namespace(last_campaign='') %}
+        {% for c in meta_campaigns %}
+        {% if c.adset_name and c.campaign_name != ns.last_campaign %}
+        {% set ns.last_campaign = c.campaign_name %}
+        <tr style="background:#f5f5f5;">
+          <td colspan="7" style="font-weight:700;font-size:11px;padding:6px 8px;border-bottom:1px solid #ddd;">
+            {{ c.campaign_name }}
+          </td>
+        </tr>
+        {% endif %}
+        <tr>
+          <td style="{% if c.adset_name %}padding-left:20px;{% endif %}">
+            {{ c.adset_name if c.adset_name else c.campaign_name }}
+          </td>
+          <td class="num">{{ c.reach | format_int }}</td>
+          <td class="num">{{ c.landing_page_views | format_int }}</td>
+          <td class="num">{% if c.cost_per_lpv %}${{ c.cost_per_lpv | format_2dp }}{% else %}—{% endif %}</td>
+          <td class="num">${{ c.spend | format_2dp }}</td>
+          <td class="num">{% if c.results > 0 %}{{ c.results }}{% else %}—{% endif %}</td>
+          <td class="num">{% if c.cost_per_result %}${{ c.cost_per_result | format_2dp }}{% else %}—{% endif %}</td>
+        </tr>
+        {% endfor %}
+        {% if meta_grand %}
+        <tr class="grand-total">
+          <td>Grand total</td>
+          <td class="num">{{ meta_grand.reach | format_int }}</td>
+          <td class="num">{{ meta_grand.landing_page_views | format_int }}</td>
+          <td class="num">{% if meta_grand.cost_per_lpv %}${{ meta_grand.cost_per_lpv | format_2dp }}{% else %}—{% endif %}</td>
+          <td class="num">${{ meta_grand.spend | format_2dp }}</td>
+          <td class="num">{% if meta_grand.results > 0 %}{{ meta_grand.results | format_int }}{% else %}—{% endif %}</td>
+          <td class="num">{% if meta_grand.cost_per_result %}${{ meta_grand.cost_per_result | format_2dp }}{% else %}—{% endif %}</td>
+        </tr>
+        {% endif %}
+      </tbody>
+    </table>
+    {% else %}
     <table>
       <thead>
         <tr>
@@ -327,6 +475,7 @@ REPORT_TEMPLATE = """<!DOCTYPE html>
         {% endfor %}
       </tbody>
     </table>
+    {% endif %}
   </div>
   {% endif %}
 
@@ -396,8 +545,29 @@ def _totals(rows, spend_key):
     }
 
 
-def _build_hero_metrics(google_rows, meta_rows):
+def _build_hero_metrics(google_rows, meta_rows, report_type=None):
     """Build the top hero metrics row from combined data."""
+    # Brand reports: Website Views · Conversions · Total Spend
+    if report_type == "brand":
+        website_views = (
+            sum(int(r.get("clicks") or 0) for r in google_rows)
+            + sum(int(r.get("landing_page_views") or 0) for r in meta_rows)
+        )
+        conversions = (
+            sum(float(r.get("all_conversions") or r.get("conversions") or 0) for r in google_rows)
+            + sum(int(r.get("results") or 0) for r in meta_rows)
+        )
+        total_spend = (
+            sum(float(r.get("cost") or 0) for r in google_rows)
+            + sum(float(r.get("spend") or 0) for r in meta_rows)
+        )
+        return [
+            {"value": f"{website_views:,}", "label": "Website Views",
+             "sub": "Google clicks + Meta landing page views"},
+            {"value": f"{int(conversions):,}", "label": "Conversions", "sub": None},
+            {"value": f"${total_spend:,.0f}", "label": "Total Spend", "sub": "All platforms"},
+        ]
+
     total_spend = sum(r["cost"] for r in google_rows) + sum(r["spend"] for r in meta_rows)
     total_impr = sum(r["impressions"] for r in google_rows) + sum(r["impressions"] for r in meta_rows)
     total_clicks = sum(r["clicks"] for r in google_rows) + sum(r["clicks"] for r in meta_rows)
@@ -491,6 +661,28 @@ def _build_narrative_prompt(client, period, google_rows, meta_rows, campaign_typ
             if r["results"] > 0:
                 m_summary += f", {r['results']} {r['result_type']}"
             m_summary += "\n"
+
+    if client.get("report_type") == "brand":
+        return f"""You are Tonya Knight, owner of Rose and Alice Creative, a New Zealand digital marketing agency. You are writing a short performance summary for {client['name']}'s monthly brand campaign report, sent directly to the client. Write in plain New Zealand English, in your own voice.
+
+Client: {client['name']}
+Industry: {client.get('industry', 'N/A')}
+Reporting period: {pl}
+{intent_block}
+Performance data:
+{g_summary}{m_summary}
+
+Write a SHORT summary — 2 short paragraphs, around 4-5 sentences total. Cover, in this order:
+1. The return the client is getting for their spend this period — frame it around the results generated and the cost per result (this is brand/lead-gen, so there is no sales revenue figure; do not invent a dollar return or ROAS).
+2. How performance compares to typical industry standards for their industry (e.g. click-through rate, cost per click, cost per conversion). Only make comparisons you are confident are broadly true; keep them general rather than citing precise benchmark figures.
+3. A positive highlight — name one specific campaign or ad set (using its exact name from the data) that performed well, and say why.
+
+STRICT RULES — follow exactly:
+- Use ONLY the exact campaign and ad set names from the data above. Never invent names, numbers, or results.
+- Do NOT list or repeat every metric — the tables already show the numbers. Tell the story, not the spreadsheet.
+- Stay positive. Do NOT mention underperformance, problems, or anything negative. No criticism of any campaign.
+- Do NOT use em dashes (—) or en dashes (–). Use a short hyphen (-) or a comma instead.
+- Plain New Zealand English. Short, to the point, no fluff, no jargon without a plain explanation. Flowing sentences, no bullet points."""
 
     return f"""You are Tonya Knight, owner of Rose and Alice Creative, a New Zealand digital marketing agency. You are writing the performance summary section of a monthly report to send directly to your client. Write in your own voice — confident, clear, and client-friendly.
 
@@ -595,9 +787,12 @@ def generate(client_slug, period=None, html_only=False, conn=None, use_saved_sum
             conn.close()
 
     # Determine output paths early (needed for saved summary logic)
+    # Filenames carry the report type so shopping/brand reports never collide.
     out_dir = OUTPUT_BASE / period
     out_dir.mkdir(parents=True, exist_ok=True)
-    summary_path = out_dir / f"{client_slug}-summary.txt"
+    report_type = client.get("report_type")
+    stem = f"{client_slug}-{report_type}" if report_type else client_slug
+    summary_path = out_dir / f"{stem}-summary.txt"
 
     # Get narrative — from saved file or Claude
     if use_saved_summary and summary_path.exists():
@@ -617,9 +812,11 @@ def generate(client_slug, period=None, html_only=False, conn=None, use_saved_sum
         narrative = re.sub(r"^#+\s+.*\n?", "", narrative, flags=re.MULTILINE)
         # Convert **bold** to <strong>
         narrative = re.sub(r"\*\*(.+?)\*\*", r"<strong>\1</strong>", narrative)
+        # Safety net: never render em/en dashes — use a short hyphen instead
+        narrative = re.sub(r"\s*[—–]\s*", " - ", narrative)
         narrative = narrative.strip()
     logo_b64 = _load_logo_b64(client_slug)
-    hero_metrics = _build_hero_metrics(google_rows, meta_rows)
+    hero_metrics = _build_hero_metrics(google_rows, meta_rows, report_type)
 
     google_totals = _totals(google_rows, "cost") if google_rows else None
     meta_totals = _totals(meta_rows, "spend") if meta_rows else None
@@ -628,18 +825,73 @@ def generate(client_slug, period=None, html_only=False, conn=None, use_saved_sum
     google_campaigns = []
     for r in google_rows:
         row = dict(r)
+        row.setdefault("ad_group_name", "")
         conv_val = float(row.get("conv_value") or 0)
         convs = float(row.get("conversions") or 0)
         row["aov"] = round(conv_val / convs, 2) if conv_val > 0 and convs > 0 else None
+        # Cost per conversion (brand reports) — uses all_conversions to match the displayed count
+        all_conv = float(row.get("all_conversions") or row.get("conversions") or 0)
+        cost = float(row.get("cost") or 0)
+        row["cost_per_conv"] = round(cost / all_conv, 2) if all_conv > 0 and cost > 0 else None
         google_campaigns.append(row)
+
+    # Brand reports: list Google campaigns (then ad groups) alphabetically
+    if report_type == "brand":
+        google_campaigns.sort(
+            key=lambda c: ((c.get("campaign_name") or "").lower(),
+                           (c.get("ad_group_name") or "").lower())
+        )
 
     meta_campaigns = []
     for r in meta_rows:
         row = dict(r)
+        row.setdefault("reach", 0)
+        row.setdefault("landing_page_views", 0)
         pv = float(row.get("purchase_value") or 0)
         results = float(row.get("results") or 0)
         row["aov"] = round(pv / results, 2) if pv > 0 and results > 0 else None
+        # Brand-report efficiency metrics
+        spend = float(row.get("spend") or 0)
+        lpv = float(row.get("landing_page_views") or 0)
+        row["cost_per_lpv"] = round(spend / lpv, 2) if lpv > 0 and spend > 0 else None
+        row["cost_per_result"] = round(spend / results, 2) if results > 0 and spend > 0 else None
         meta_campaigns.append(row)
+
+    # Brand reports: list Meta campaigns (then ad sets) alphabetically
+    if report_type == "brand":
+        meta_campaigns.sort(
+            key=lambda c: ((c.get("campaign_name") or "").lower(),
+                           (c.get("adset_name") or "").lower())
+        )
+
+    # Grand totals (used by the brand-report total rows)
+    google_grand = None
+    if google_campaigns:
+        g_clicks = sum(int(c.get("clicks") or 0) for c in google_campaigns)
+        g_cost = sum(float(c.get("cost") or 0) for c in google_campaigns)
+        g_allconv = sum(float(c.get("all_conversions") or 0) for c in google_campaigns)
+        google_grand = {
+            "impressions": sum(int(c.get("impressions") or 0) for c in google_campaigns),
+            "clicks": g_clicks,
+            "avg_cpc": round(g_cost / g_clicks, 2) if g_clicks else 0,
+            "all_conversions": g_allconv,
+            "cost_per_conv": round(g_cost / g_allconv, 2) if g_allconv else None,
+            "cost": g_cost,
+        }
+
+    meta_grand = None
+    if meta_campaigns:
+        m_spend = sum(float(c.get("spend") or 0) for c in meta_campaigns)
+        m_results = sum(int(c.get("results") or 0) for c in meta_campaigns)
+        m_lpv = sum(float(c.get("landing_page_views") or 0) for c in meta_campaigns)
+        meta_grand = {
+            "reach": sum(int(c.get("reach") or 0) for c in meta_campaigns),
+            "results": m_results,
+            "landing_page_views": int(m_lpv),
+            "cost_per_lpv": round(m_spend / m_lpv, 2) if m_lpv else None,
+            "spend": m_spend,
+            "cost_per_result": round(m_spend / m_results, 2) if m_results else None,
+        }
 
     # Combined totals for breakdown section
     combined_totals = None
@@ -655,14 +907,17 @@ def generate(client_slug, period=None, html_only=False, conn=None, use_saved_sum
 
     context = {
         "client_name": client["name"],
+        "report_type": report_type,
         "period_label": period_label(period),
         "logo_b64": logo_b64,
         "hero_metrics": hero_metrics,
         "hero_cols": len(hero_metrics),
         "google_campaigns": google_campaigns,
         "google_totals": google_totals,
+        "google_grand": google_grand,
         "meta_campaigns": meta_campaigns,
         "meta_totals": meta_totals,
+        "meta_grand": meta_grand,
         "narrative": narrative,
         "narrative_paragraphs": narrative.split("\n\n") if narrative else [],
         "generated_date": datetime.now().strftime("%d %B %Y"),
@@ -670,14 +925,14 @@ def generate(client_slug, period=None, html_only=False, conn=None, use_saved_sum
 
     html = _make_template().render(**context)
 
-    html_path = out_dir / f"{client_slug}.html"
+    html_path = out_dir / f"{stem}.html"
     html_path.write_text(html, encoding="utf-8")
 
     if html_only:
         return html_path
 
     # Attempt PDF via headless Chrome, fall back to HTML
-    pdf_path = out_dir / f"{client_slug}.pdf"
+    pdf_path = out_dir / f"{stem}.pdf"
     chrome_paths = [
         "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
         "/Applications/Chromium.app/Contents/MacOS/Chromium",

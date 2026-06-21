@@ -8,6 +8,23 @@
 
 ---
 
+## 2026-06-21
+
+### ReportingOS — Shopping vs Brand Report Split
+- Added `report_type` (shopping/brand) to all 12 clients in `reporting-clients.yaml`; output filenames now carry the type as a suffix (e.g. `moving-on-brand.pdf`)
+- New `--report-type shopping|brand` flag on `run_reports.py` to run all clients of one type
+- **Brand reports** fully built out and verified live on Moving On (one page, titled "Digital Marketing Report"):
+  - Google pulled at **ad-group level** (campaign → ad group), Meta at **ad-set level** (campaign → ad set, alphabetical)
+  - Google columns: Impressions · Clicks · Avg CPC · All Conv. · Cost/Conv. · Cost + grand total + plain-English metric key
+  - Meta columns: Reach · Landing Page Views · Cost/Landing Page · Amount Spent · Results · Cost/Result + grand total
+  - Hero row: Website Views (Google clicks + Meta landing page views) · Conversions · Total Spend
+  - Performance summary rewritten: ROI, vs industry standards, positive highlight, plain NZ English, no negatives, no em dashes
+- Meta collector now pulls **reach** and **landing page views**; Google collector gained ad-group support with a safe table migration
+- Fixed a level-switch bug: collectors now clear a client's existing rows for the period before writing, preventing stale double-counted rows
+- Shopping reports unchanged (original full-detail campaign-level layout)
+
+---
+
 ## 2026-06-01
 
 ### ReportingOS — Monthly Client Reporting Completed

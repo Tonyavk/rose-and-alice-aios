@@ -200,17 +200,26 @@ Example: `/share the daily brief system`
 
 ### ReportingOS — Monthly Client Reports
 - Scripts: `scripts/reporting/`
-- Client config: `config/reporting-clients.yaml` (add clients here — slug, Meta account ID, Google Ads customer ID)
+- Client config: `config/reporting-clients.yaml` (add clients here — slug, `report_type`, Meta account ID, Google Ads customer ID)
+- Report types: each client is `report_type: shopping` or `report_type: brand` — filenames carry the type as a suffix so the two kinds never collide
 - Logos: `config/client-logos/{slug}.png`
-- Output: `outputs/client-reports/YYYY-MM/{slug}.pdf`
-- Narrative (editable): `outputs/client-reports/YYYY-MM/{slug}-summary.txt` — edit this before finalising
+- Output: `outputs/client-reports/YYYY-MM/{slug}-{type}.pdf` (e.g. `vivea-skincare-shopping.pdf`)
+- Narrative (editable): `outputs/client-reports/YYYY-MM/{slug}-{type}-summary.txt` — edit this before finalising
+
+**Brand reports** (built out — fit on one page, titled "Digital Marketing Report"):
+- Google: pulled at **ad-group level**, shown campaign → ad group; columns Impressions · Clicks · Avg CPC · All Conv. · Cost/Conv. · Cost, plus grand-total row and a plain-English metric key
+- Meta: pulled at **ad-set level**, shown campaign → ad set (alphabetical); columns Reach · Landing Page Views · Cost/Landing Page · Amount Spent · Results · Cost/Result, plus grand-total row
+- Hero: Website Views (Google clicks + Meta landing page views) · Conversions · Total Spend
+- Summary: ROI, vs industry standards, one positive highlight; short plain NZ English, no negatives, no em dashes
+- PMax caveat: Performance Max campaigns have no ad groups, so they drop out of the ad-group Google view
+- **Shopping reports** keep the original full-detail layout (campaign level, ROAS/AOV focus)
 
 **Workflow (each month):**
 1. Run: `python scripts/reporting/run_reports.py --period 2026-05 --client vivea-skincare`
-2. Edit the narrative: `outputs/client-reports/2026-05/vivea-skincare-summary.txt`
+2. Edit the narrative: `outputs/client-reports/2026-05/vivea-skincare-shopping-summary.txt`
 3. Finalise PDF: `python scripts/reporting/run_reports.py --no-collect --finalize --client vivea-skincare --period 2026-05`
 
-**Flags:** `--period YYYY-MM` · `--client slug` · `--no-collect` (skip data pull) · `--finalize` (use saved txt) · `--html-only`
+**Flags:** `--period YYYY-MM` · `--client slug` · `--report-type shopping|brand` (run all clients of one type) · `--no-collect` (skip data pull) · `--finalize` (use saved txt) · `--html-only`
 
 **Credentials:** `GOOGLE_ADS_*` and `META_ACCESS_TOKEN` in `.env` — Meta token expires every ~60 days, regenerate at Meta Business Manager
 
