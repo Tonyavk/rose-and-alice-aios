@@ -10,6 +10,13 @@
 
 ## 2026-06-21
 
+### ReportingOS — Brand Report Refinements
+- Brand tables collapse single-ad-group / single-ad-set campaigns to one row (campaign name); campaigns with multiple keep the indented grouping — keeps busy clients on one page (verified on Shed Specialists)
+- Meta "Results" column now labelled "Results / Leads" (two lines) to be specific
+- Footer domain corrected to roseandalicecreative.com
+- Performance summary switched from invented industry benchmarks to **real month-over-month comparison** from the database; industry context kept only as a clearly-hedged general guide; sensationalist language removed
+- Brand summary now fed reach / landing page views / leads (not impressions), fixing a reach figure that was being overstated; Meta with no prior month is reported factually as a baseline
+
 ### ReportingOS — Shopping vs Brand Report Split
 - Added `report_type` (shopping/brand) to all 12 clients in `reporting-clients.yaml`; output filenames now carry the type as a suffix (e.g. `moving-on-brand.pdf`)
 - New `--report-type shopping|brand` flag on `run_reports.py` to run all clients of one type

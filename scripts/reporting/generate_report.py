@@ -287,7 +287,7 @@ REPORT_TEMPLATE = """<!DOCTYPE html>
       <tbody>
         {% set ns = namespace(last_campaign='') %}
         {% for c in google_campaigns %}
-        {% if c.ad_group_name and c.campaign_name != ns.last_campaign %}
+        {% if c.ad_group_name and not c.is_solo and c.campaign_name != ns.last_campaign %}
         {% set ns.last_campaign = c.campaign_name %}
         <tr style="background:#f5f5f5;">
           <td colspan="7" style="font-weight:700;font-size:11px;padding:6px 8px;border-bottom:1px solid #ddd;">
@@ -296,8 +296,8 @@ REPORT_TEMPLATE = """<!DOCTYPE html>
         </tr>
         {% endif %}
         <tr>
-          <td style="{% if c.ad_group_name %}padding-left:20px;{% endif %}">
-            {{ c.ad_group_name if c.ad_group_name else c.campaign_name }}
+          <td style="{% if c.ad_group_name and not c.is_solo %}padding-left:20px;{% endif %}">
+            {% if c.ad_group_name and not c.is_solo %}{{ c.ad_group_name }}{% else %}{{ c.campaign_name }}{% endif %}
           </td>
           <td class="num">{{ c.impressions | format_int }}</td>
           <td class="num">{{ c.clicks | format_int }}</td>
@@ -391,14 +391,14 @@ REPORT_TEMPLATE = """<!DOCTYPE html>
           <th class="num wrap">Landing Page Views</th>
           <th class="num wrap">Cost / Landing Page</th>
           <th class="num">Amount Spent</th>
-          <th class="num">Results</th>
+          <th class="num wrap">Results<br><span style="font-weight:400;font-size:9px;color:#ccc;">Leads</span></th>
           <th class="num wrap">Cost / Result</th>
         </tr>
       </thead>
       <tbody>
         {% set ns = namespace(last_campaign='') %}
         {% for c in meta_campaigns %}
-        {% if c.adset_name and c.campaign_name != ns.last_campaign %}
+        {% if c.adset_name and not c.is_solo and c.campaign_name != ns.last_campaign %}
         {% set ns.last_campaign = c.campaign_name %}
         <tr style="background:#f5f5f5;">
           <td colspan="7" style="font-weight:700;font-size:11px;padding:6px 8px;border-bottom:1px solid #ddd;">
@@ -407,8 +407,8 @@ REPORT_TEMPLATE = """<!DOCTYPE html>
         </tr>
         {% endif %}
         <tr>
-          <td style="{% if c.adset_name %}padding-left:20px;{% endif %}">
-            {{ c.adset_name if c.adset_name else c.campaign_name }}
+          <td style="{% if c.adset_name and not c.is_solo %}padding-left:20px;{% endif %}">
+            {% if c.adset_name and not c.is_solo %}{{ c.adset_name }}{% else %}{{ c.campaign_name }}{% endif %}
           </td>
           <td class="num">{{ c.reach | format_int }}</td>
           <td class="num">{{ c.landing_page_views | format_int }}</td>
@@ -497,7 +497,7 @@ REPORT_TEMPLATE = """<!DOCTYPE html>
 
   <!-- Footer -->
   <div class="footer">
-    <div><strong>Rose and Alice Creative</strong> &nbsp;·&nbsp; roseandalicecreative.co.nz</div>
+    <div><strong>Rose and Alice Creative</strong> &nbsp;·&nbsp; roseandalicecreative.com</div>
     <div>{{ period_label }} &nbsp;·&nbsp; Generated {{ generated_date }}</div>
   </div>
 
@@ -604,7 +604,54 @@ def _build_hero_metrics(google_rows, meta_rows, report_type=None):
 # Claude narrative
 # ---------------------------------------------------------------------------
 
-def _build_narrative_prompt(client, period, google_rows, meta_rows, campaign_types=None):
+def _prev_period(period):
+    """Return the month before a 'YYYY-MM' period."""
+    year, month = map(int, period.split("-"))
+    month -= 1
+    if month == 0:
+        month, year = 12, year - 1
+    return f"{year}-{month:02d}"
+
+
+def _brand_totals(google_rows, meta_rows):
+    """Roll up the figures a brand summary compares month-on-month."""
+    return {
+        "g_rows": len(google_rows),
+        "g_clicks": sum(int(r.get("clicks") or 0) for r in google_rows),
+        "g_conv": sum(float(r.get("all_conversions") or r.get("conversions") or 0) for r in google_rows),
+        "g_cost": sum(float(r.get("cost") or 0) for r in google_rows),
+        "m_rows": len(meta_rows),
+        "m_reach": sum(int(r.get("reach") or 0) for r in meta_rows),
+        "m_lpv": sum(int(r.get("landing_page_views") or 0) for r in meta_rows),
+        "m_results": sum(int(r.get("results") or 0) for r in meta_rows),
+        "m_spend": sum(float(r.get("spend") or 0) for r in meta_rows),
+    }
+
+
+def _mom_block(period, cur, prev):
+    """Build a plain-text month-on-month figures block for the brand prompt."""
+    pl, ppl = period_label(period), period_label(_prev_period(period))
+    lines = [f"Month-on-month figures (this month = {pl}; last month = {ppl}):"]
+    if cur["g_rows"]:
+        if prev["g_rows"]:
+            lines.append(f"  Google clicks: {cur['g_clicks']:,} (last month {prev['g_clicks']:,})")
+            lines.append(f"  Google conversions: {cur['g_conv']:.1f} (last month {prev['g_conv']:.1f})")
+            lines.append(f"  Google spend: ${cur['g_cost']:,.2f} (last month ${prev['g_cost']:,.2f})")
+        else:
+            lines.append("  Google: no last-month data available - report this month only, no comparison.")
+    if cur["m_rows"]:
+        if prev["m_rows"]:
+            lines.append(f"  Meta reach: {cur['m_reach']:,} (last month {prev['m_reach']:,})")
+            lines.append(f"  Meta landing page views: {cur['m_lpv']:,} (last month {prev['m_lpv']:,})")
+            lines.append(f"  Meta leads: {cur['m_results']:,} (last month {prev['m_results']:,})")
+            lines.append(f"  Meta spend: ${cur['m_spend']:,.2f} (last month ${prev['m_spend']:,.2f})")
+        else:
+            lines.append("  Meta: no last-month data available - report this month only, no comparison.")
+    return "\n".join(lines) + "\n"
+
+
+def _build_narrative_prompt(client, period, google_rows, meta_rows, campaign_types=None,
+                            prev_google_rows=None, prev_meta_rows=None):
     pl = period_label(period)
     campaign_types = campaign_types or {}
 
@@ -663,24 +710,51 @@ def _build_narrative_prompt(client, period, google_rows, meta_rows, campaign_typ
             m_summary += "\n"
 
     if client.get("report_type") == "brand":
-        return f"""You are Tonya Knight, owner of Rose and Alice Creative, a New Zealand digital marketing agency. You are writing a short performance summary for {client['name']}'s monthly brand campaign report, sent directly to the client. Write in plain New Zealand English, in your own voice.
+        cur = _brand_totals(google_rows, meta_rows)
+        prev = _brand_totals(prev_google_rows or [], prev_meta_rows or [])
+        mom = _mom_block(period, cur, prev)
+
+        # Brand data block — reach/leads/landing pages, never impressions
+        gb = ""
+        if google_rows:
+            gb = (f"Google Ads — {cur['g_clicks']:,} clicks, {cur['g_conv']:.1f} conversions, "
+                  f"${cur['g_cost']:,.2f} spend\n")
+            for r in google_rows:
+                label  = r.get("ad_group_name") or r["campaign_name"]
+                parent = f" [{r['campaign_name']}]" if r.get("ad_group_name") else ""
+                ac = r.get("all_conversions") or r.get("conversions") or 0
+                gb += f"  • {label}{parent}: {r['clicks']:,} clicks, {ac:.1f} conversions, ${r['cost']:,.2f}\n"
+        mb = ""
+        if meta_rows:
+            mb = (f"Meta Ads — {cur['m_reach']:,} reach, {cur['m_lpv']:,} landing page views, "
+                  f"{cur['m_results']} leads, ${cur['m_spend']:,.2f} spend\n")
+            for r in meta_rows:
+                label  = r.get("adset_name") or r["campaign_name"]
+                parent = f" [{r['campaign_name']}]" if r.get("adset_name") else ""
+                mb += (f"  • {label}{parent}: {int(r.get('reach') or 0):,} reach, "
+                       f"{int(r.get('landing_page_views') or 0):,} landing page views, "
+                       f"{int(r.get('results') or 0)} leads, ${r['spend']:,.2f}\n")
+
+        return f"""You are Tonya Knight, owner of Rose and Alice Creative, a New Zealand digital marketing agency. You are writing a short, factual performance summary for {client['name']}'s monthly brand campaign report, sent directly to the client. Write in plain New Zealand English, in your own voice.
 
 Client: {client['name']}
 Industry: {client.get('industry', 'N/A')}
 Reporting period: {pl}
 {intent_block}
-Performance data:
-{g_summary}{m_summary}
-
-Write a SHORT summary — 2 short paragraphs, around 4-5 sentences total. Cover, in this order:
-1. The return the client is getting for their spend this period — frame it around the results generated and the cost per result (this is brand/lead-gen, so there is no sales revenue figure; do not invent a dollar return or ROAS).
-2. How performance compares to typical industry standards for their industry (e.g. click-through rate, cost per click, cost per conversion). Only make comparisons you are confident are broadly true; keep them general rather than citing precise benchmark figures.
-3. A positive highlight — name one specific campaign or ad set (using its exact name from the data) that performed well, and say why.
+Performance data (this month):
+{gb}{mb}
+{mom}
+Write a SHORT summary — 2 short paragraphs, around 4-5 sentences total. Be factual and plain. Cover:
+1. The results and spend this period and how they changed versus last month, using ONLY the month-on-month figures above (e.g. "leads rose from 160 to 184", or "cost per lead came down"). This is brand/lead-gen, so there is no sales revenue or ROAS — frame the return around leads/results and cost per result. Only compare a platform if it has last-month data; otherwise just state this month's figures for it.
+2. A brief industry context as a GENERAL guide only, clearly hedged (e.g. "as a rough guide in this sector..."), plus one positive highlight naming a specific campaign or ad set (exact name from the data) that did well.
 
 STRICT RULES — follow exactly:
-- Use ONLY the exact campaign and ad set names from the data above. Never invent names, numbers, or results.
-- Do NOT list or repeat every metric — the tables already show the numbers. Tell the story, not the spreadsheet.
-- Stay positive. Do NOT mention underperformance, problems, or anything negative. No criticism of any campaign.
+- Use ONLY the exact campaign/ad set names and the figures provided above. Never invent names, numbers, or comparisons.
+- For any month-on-month comparison, use ONLY the month-on-month figures provided. If a platform shows "no last-month data", do not compare it — just report this month.
+- For Meta, refer to reach, landing page views, and leads — not impressions.
+- Industry context must be framed as a general rule of thumb, NOT verified data. Do not state precise benchmark figures as confirmed fact.
+- Avoid sensationalist or vague language. Do not use words like "solid", "strong", "great", "well above", or "smashing". State plain facts.
+- Report figures neutrally and factually. Lead with what improved. Do not use negative or alarming language about any decrease, and do not call anything a problem or underperformance.
 - Do NOT use em dashes (—) or en dashes (–). Use a short hyphen (-) or a comma instead.
 - Plain New Zealand English. Short, to the point, no fluff, no jargon without a plain explanation. Flowing sentences, no bullet points."""
 
@@ -711,13 +785,15 @@ Paragraph 3 — Recommendations: 2-3 specific actions for next month grounded in
 Tone: Direct, warm, professional. Written as Tonya speaking to her client. No jargon without explanation. No bullet points — flowing paragraphs only. Keep each paragraph to 3 sentences maximum."""
 
 
-def _get_narrative(client, period, google_rows, meta_rows, api_key, campaign_types=None):
+def _get_narrative(client, period, google_rows, meta_rows, api_key, campaign_types=None,
+                   prev_google_rows=None, prev_meta_rows=None):
     """Call Claude to generate the report narrative, with retry on overload."""
     if not api_key:
         return None
 
     import time
-    prompt = _build_narrative_prompt(client, period, google_rows, meta_rows, campaign_types)
+    prompt = _build_narrative_prompt(client, period, google_rows, meta_rows, campaign_types,
+                                     prev_google_rows, prev_meta_rows)
     ai_client = anthropic.Anthropic(api_key=api_key)
 
     for attempt in range(3):
@@ -779,9 +855,12 @@ def generate(client_slug, period=None, html_only=False, conn=None, use_saved_sum
         conn = get_connection()
         close_conn = True
 
+    prev_period = _prev_period(period)
     try:
         google_rows = _load_google_data(conn, client_slug, period)
         meta_rows = _load_meta_data(conn, client_slug, period)
+        prev_google_rows = _load_google_data(conn, client_slug, prev_period)
+        prev_meta_rows = _load_meta_data(conn, client_slug, prev_period)
     finally:
         if close_conn:
             conn.close()
@@ -801,7 +880,8 @@ def generate(client_slug, period=None, html_only=False, conn=None, use_saved_sum
     else:
         all_campaign_types = load_campaign_types()
         client_campaign_types = all_campaign_types.get(client_slug, {})
-        narrative = _get_narrative(client, period, google_rows, meta_rows, creds["anthropic_api_key"], client_campaign_types)
+        narrative = _get_narrative(client, period, google_rows, meta_rows, creds["anthropic_api_key"],
+                                   client_campaign_types, prev_google_rows, prev_meta_rows)
         if narrative:
             summary_path.write_text(narrative, encoding="utf-8")
             print(f"  Summary saved for review: {summary_path}", file=sys.stderr)
@@ -835,12 +915,18 @@ def generate(client_slug, period=None, html_only=False, conn=None, use_saved_sum
         row["cost_per_conv"] = round(cost / all_conv, 2) if all_conv > 0 and cost > 0 else None
         google_campaigns.append(row)
 
-    # Brand reports: list Google campaigns (then ad groups) alphabetically
+    # Brand reports: list Google campaigns (then ad groups) alphabetically,
+    # and flag campaigns with a single ad group so they collapse to one row.
     if report_type == "brand":
         google_campaigns.sort(
             key=lambda c: ((c.get("campaign_name") or "").lower(),
                            (c.get("ad_group_name") or "").lower())
         )
+        _gcounts = {}
+        for c in google_campaigns:
+            _gcounts[c.get("campaign_name")] = _gcounts.get(c.get("campaign_name"), 0) + 1
+        for c in google_campaigns:
+            c["is_solo"] = _gcounts.get(c.get("campaign_name"), 0) <= 1
 
     meta_campaigns = []
     for r in meta_rows:
@@ -857,12 +943,18 @@ def generate(client_slug, period=None, html_only=False, conn=None, use_saved_sum
         row["cost_per_result"] = round(spend / results, 2) if results > 0 and spend > 0 else None
         meta_campaigns.append(row)
 
-    # Brand reports: list Meta campaigns (then ad sets) alphabetically
+    # Brand reports: list Meta campaigns (then ad sets) alphabetically,
+    # and flag campaigns with a single ad set so they collapse to one row.
     if report_type == "brand":
         meta_campaigns.sort(
             key=lambda c: ((c.get("campaign_name") or "").lower(),
                            (c.get("adset_name") or "").lower())
         )
+        _mcounts = {}
+        for c in meta_campaigns:
+            _mcounts[c.get("campaign_name")] = _mcounts.get(c.get("campaign_name"), 0) + 1
+        for c in meta_campaigns:
+            c["is_solo"] = _mcounts.get(c.get("campaign_name"), 0) <= 1
 
     # Grand totals (used by the brand-report total rows)
     google_grand = None
