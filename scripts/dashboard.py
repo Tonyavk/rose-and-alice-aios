@@ -150,8 +150,8 @@ def generate_dashboard_image(metrics, width=600, save_path=None):
 
         # Separator line
         y_pos -= 0.01
-        ax.axhline(
-            y=y_pos, xmin=0.04, xmax=0.96,
+        ax.plot(
+            [0.04, 0.96], [y_pos, y_pos],
             color="#2a2a4e", linewidth=0.5,
             transform=ax.transAxes,
         )

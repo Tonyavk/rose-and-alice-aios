@@ -27,17 +27,29 @@ from config import load_clients, last_month_period, period_dates, get_creds
 
 META_API_BASE = "https://graph.facebook.com/v19.0"
 
-# Conversion action types to extract from the 'actions' field
-PURCHASE_ACTIONS = {
+# Conversion action types, in priority order. Meta reports the same conversion
+# under several overlapping action types (e.g. 'omni_purchase' and 'purchase'
+# are rollups that already include the pixel purchase), so we take the FIRST
+# type present — never sum across them, that double/triple counts.
+PURCHASE_ACTIONS = (
     "offsite_conversion.fb_pixel_purchase",
-    "purchase",
     "omni_purchase",
-}
-LEAD_ACTIONS = {
+    "purchase",
+)
+LEAD_ACTIONS = (
     "lead",
     "offsite_conversion.fb_pixel_lead",
     "onsite_conversion.lead_grouped",
-}
+)
+
+
+def _first_action_value(entries, types_priority):
+    """Return the value of the first action type present, by priority order."""
+    by_type = {a["action_type"]: float(a["value"]) for a in entries}
+    for t in types_priority:
+        if t in by_type:
+            return by_type[t]
+    return 0.0
 
 
 def _fetch_insights(account_id, access_token, start_date, end_date, level="campaign"):
@@ -70,18 +82,10 @@ def _fetch_insights(account_id, access_token, start_date, end_date, level="campa
         actions = row.get("actions", []) or []
         action_values = row.get("action_values", []) or []
 
-        purchases = sum(
-            float(a["value"]) for a in actions if a["action_type"] in PURCHASE_ACTIONS
-        )
-        leads = sum(
-            float(a["value"]) for a in actions if a["action_type"] in LEAD_ACTIONS
-        )
-        landing_page_views = sum(
-            float(a["value"]) for a in actions if a["action_type"] == "landing_page_view"
-        )
-        purchase_value = sum(
-            float(a["value"]) for a in action_values if a["action_type"] in PURCHASE_ACTIONS
-        )
+        purchases = _first_action_value(actions, PURCHASE_ACTIONS)
+        leads = _first_action_value(actions, LEAD_ACTIONS)
+        landing_page_views = _first_action_value(actions, ("landing_page_view",))
+        purchase_value = _first_action_value(action_values, PURCHASE_ACTIONS)
 
         if purchases > 0:
             results = purchases
@@ -245,16 +249,24 @@ if __name__ == "__main__":
 
     result = collect(args.period)
     if result["status"] == "success":
-        for slug, campaigns in result["data"].items():
+        for slug, client_result in result["data"].items():
+            campaigns = client_result["data"]
             total_spend = sum(c["spend"] for c in campaigns)
             total_impr = sum(c["impressions"] for c in campaigns)
             total_clicks = sum(c["clicks"] for c in campaigns)
-            print(f"\n{slug}  ({len(campaigns)} campaigns | {total_impr:,} impr | "
+            print(f"\n{slug}  ({len(campaigns)} rows | {total_impr:,} impr | "
                   f"{total_clicks:,} clicks | ${total_spend:,.2f})")
             for c in campaigns:
-                print(f"  {c['campaign_name']:<40} "
+                name = c.get("adset_name") or c["campaign_name"]
+                print(f"  {name:<40} "
                       f"{c['impressions']:>8,} impr  {c['clicks']:>6,} clicks  ${c['spend']:>8,.2f}")
         if result.get("errors"):
             print(f"\nErrors: {result['errors']}")
+
+        import sqlite3
+        conn = sqlite3.connect(WORKSPACE_ROOT / "data" / "data.db")
+        records = write(conn, result, result["period"])
+        conn.close()
+        print(f"\nWrote {records} rows to meta_campaign_monthly for {result['period']}")
     else:
         print(f"{result['status']}: {result.get('reason', '')}")

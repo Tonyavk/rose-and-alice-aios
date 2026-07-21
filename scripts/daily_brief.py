@@ -20,6 +20,7 @@ import logging
 import os
 import sqlite3
 import sys
+import time
 from datetime import datetime, timedelta
 from pathlib import Path
 
@@ -84,34 +85,46 @@ def _call_gemini(prompt, model=None):
     config = types.GenerateContentConfig(
         max_output_tokens=16384,
         temperature=0.3,
-        http_options=types.HttpOptions(timeout=300_000),
+        http_options=types.HttpOptions(timeout=120_000),
     )
 
-    try:
-        response = client.models.generate_content(
-            model=model, contents=prompt, config=config
-        )
-        input_tokens = response.usage_metadata.prompt_token_count
-        output_tokens = response.usage_metadata.candidates_token_count
-        cost = (
-            input_tokens * model_pricing["input"] / 1_000_000
-            + output_tokens * model_pricing["output"] / 1_000_000
-        )
+    # Retry transient API errors (503 overload, 429 rate limit, timeouts) with backoff
+    transient_markers = ("503", "unavailable", "429", "resource_exhausted",
+                         "500", "internal", "timed out", "timeout", "deadline")
+    for attempt in range(3):
+        try:
+            response = client.models.generate_content(
+                model=model, contents=prompt, config=config
+            )
+            input_tokens = response.usage_metadata.prompt_token_count
+            output_tokens = response.usage_metadata.candidates_token_count
+            cost = (
+                input_tokens * model_pricing["input"] / 1_000_000
+                + output_tokens * model_pricing["output"] / 1_000_000
+            )
 
-        logger.info(
-            f"Gemini: {input_tokens:,} in, {output_tokens:,} out, ${cost:.4f}"
-        )
+            logger.info(
+                f"Gemini: {input_tokens:,} in, {output_tokens:,} out, ${cost:.4f}"
+            )
 
-        return {
-            "text": response.text or "",
-            "input_tokens": input_tokens,
-            "output_tokens": output_tokens,
-            "cost_usd": cost,
-            "model": model,
-        }
-    except Exception as e:
-        logger.error(f"Gemini API error: {e}")
-        return {"text": "", "error": str(e), "cost_usd": 0.0}
+            return {
+                "text": response.text or "",
+                "input_tokens": input_tokens,
+                "output_tokens": output_tokens,
+                "cost_usd": cost,
+                "model": model,
+            }
+        except Exception as e:
+            msg = str(e)
+            is_transient = any(m in msg.lower() for m in transient_markers)
+            if attempt < 2 and is_transient:
+                wait = 20 * (attempt + 1)
+                logger.warning(f"Gemini transient error, retrying in {wait}s "
+                               f"(attempt {attempt + 1}/3): {msg[:100]}")
+                time.sleep(wait)
+                continue
+            logger.error(f"Gemini API error: {e}")
+            return {"text": "", "error": str(e), "cost_usd": 0.0}
 
 
 def run_daily_brief(target_date=None, preset="small_team", dry_run=False,
@@ -268,9 +281,21 @@ def main():
         "--test", action="store_true",
         help="Quick test mode (dry run + print)"
     )
+    parser.add_argument(
+        "--skip-if-exists", action="store_true",
+        help="Skip if this date's brief was already generated (for boot/login catch-up runs)"
+    )
     args = parser.parse_args()
 
     preset = args.preset or os.environ.get("BRIEF_PRESET", "small_team")
+
+    # Once-per-day guard: when the Mac was off at 8am, the job also runs at
+    # login (RunAtLoad). This stops it re-generating/re-sending the same brief.
+    if args.skip_if_exists:
+        td = args.date or (datetime.now() - timedelta(days=1)).strftime("%Y-%m-%d")
+        if (OUTPUT_DIR / f"{td}.md").exists():
+            print(f"Brief for {td} already exists — skipping.")
+            return
 
     if args.test:
         result = run_daily_brief(

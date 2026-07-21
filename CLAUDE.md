@@ -184,7 +184,7 @@ Example: `/share the daily brief system`
 ### IntelOS — Meeting & Slack Intelligence
 - Database: `data/data.db` (same DB — tables: `meetings`, `slack_messages`, `staff_registry`)
 - Scripts: `scripts/intel/`
-- Meeting recorder: not connected yet — add Fireflies or Fathom when ready
+- Meeting recorder: **Fireflies connected** (July 2026) — `FIREFLIES_API_KEY` in `.env`, transcripts land in the `meetings` table via `collect_all.py`
 - Slack: not connected yet
 - Search meetings: `python3 -c "import sys; sys.path.insert(0,'scripts/intel'); from db import get_connection, search_meetings; conn=get_connection(); print(search_meetings(conn,'keyword'))"`
 - Run collection: `python3 scripts/intel/collect_all.py`
@@ -200,7 +200,7 @@ Example: `/share the daily brief system`
 
 ### ReportingOS — Monthly Client Reports
 - Scripts: `scripts/reporting/`
-- Client config: `config/reporting-clients.yaml` (add clients here — slug, `report_type`, Meta account ID, Google Ads customer ID)
+- Client config: `config/reporting-clients.yaml` (add clients here — slug, `report_type`, Meta account ID, Google Ads customer ID; optional `active_only: true` under a client's `google_ads` block limits the report to currently-enabled campaigns, and optional `conversion_category: SUBMIT_LEAD_FORM` makes the All Conv. column count only that goal category — both used for Alden)
 - Report types: each client is `report_type: shopping` or `report_type: brand` — filenames carry the type as a suffix so the two kinds never collide
 - Logos: `config/client-logos/{slug}.png`
 - Output: `outputs/client-reports/YYYY-MM/{slug}-{type}.pdf` (e.g. `vivea-skincare-shopping.pdf`)

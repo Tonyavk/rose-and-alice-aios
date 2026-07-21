@@ -38,8 +38,16 @@ def _build_ads_client(creds):
     return GoogleAdsClient.load_from_dict(cfg)
 
 
-def _fetch_campaigns(ads_client, customer_id, start_date, end_date, level="campaign"):
-    """Pull metrics for a customer over a date range, at campaign or ad-group level."""
+def _fetch_campaigns(ads_client, customer_id, start_date, end_date, level="campaign",
+                     active_only=False):
+    """Pull metrics for a customer over a date range, at campaign or ad-group level.
+
+    active_only=True limits results to currently-ENABLED campaigns (per-client
+    'active_only' flag in reporting-clients.yaml); otherwise paused campaigns
+    that had activity in the period are included.
+    """
+    campaign_status = "campaign.status = 'ENABLED'" if active_only \
+        else "campaign.status IN ('ENABLED', 'PAUSED')"
     if level == "ad_group":
         select = """
             campaign.id,
@@ -48,14 +56,14 @@ def _fetch_campaigns(ads_client, customer_id, start_date, end_date, level="campa
             ad_group.id,
             ad_group.name,"""
         from_clause = "ad_group"
-        status_filter = "ad_group.status IN ('ENABLED', 'PAUSED')"
+        status_filter = f"{campaign_status} AND ad_group.status IN ('ENABLED', 'PAUSED')"
     else:
         select = """
             campaign.id,
             campaign.name,
             campaign.advertising_channel_type,"""
         from_clause = "campaign"
-        status_filter = "campaign.status IN ('ENABLED', 'PAUSED')"
+        status_filter = campaign_status
 
     query = f"""
         SELECT{select}
@@ -107,6 +115,41 @@ def _fetch_campaigns(ads_client, customer_id, start_date, end_date, level="campa
     return campaigns
 
 
+def _fetch_category_conversions(ads_client, customer_id, start_date, end_date,
+                                level, category, active_only=False):
+    """Return {(campaign_id, ad_group_id): all_conversions} counting only
+    conversions whose goal category matches (e.g. 'SUBMIT_LEAD_FORM')."""
+    campaign_status = "campaign.status = 'ENABLED'" if active_only \
+        else "campaign.status IN ('ENABLED', 'PAUSED')"
+    if level == "ad_group":
+        select = "campaign.id, ad_group.id"
+        from_clause = "ad_group"
+        status_filter = f"{campaign_status} AND ad_group.status IN ('ENABLED', 'PAUSED')"
+    else:
+        select = "campaign.id"
+        from_clause = "campaign"
+        status_filter = campaign_status
+
+    query = f"""
+        SELECT {select},
+            segments.conversion_action_category,
+            metrics.all_conversions
+        FROM {from_clause}
+        WHERE segments.date BETWEEN '{start_date}' AND '{end_date}'
+            AND segments.conversion_action_category = '{category}'
+            AND {status_filter}
+    """
+    request = ads_client.get_type("SearchGoogleAdsRequest")
+    request.customer_id = str(customer_id).replace("-", "")
+    request.query = query
+
+    totals = {}
+    for row in ads_client.get_service("GoogleAdsService").search(request=request):
+        key = (str(row.campaign.id), str(row.ad_group.id) if level == "ad_group" else "")
+        totals[key] = totals.get(key, 0.0) + row.metrics.all_conversions
+    return totals
+
+
 def collect(period=None):
     """
     Collect Google Ads monthly data for all configured clients.
@@ -140,10 +183,23 @@ def collect(period=None):
     for client in clients:
         slug = client["slug"]
         customer_id = client["platforms"]["google_ads"]["customer_id"]
+        active_only = client["platforms"]["google_ads"].get("active_only", False)
         # Brand and shopping reports break down by ad group; others stay at campaign level
         level = "ad_group" if client.get("report_type") in ("brand", "shopping") else "campaign"
+        conversion_category = client["platforms"]["google_ads"].get("conversion_category")
         try:
-            campaigns = _fetch_campaigns(ads_client, customer_id, start_date, end_date, level)
+            campaigns = _fetch_campaigns(ads_client, customer_id, start_date, end_date, level,
+                                         active_only=active_only)
+            if conversion_category:
+                # Replace all_conversions with only this goal category's conversions
+                # (e.g. SUBMIT_LEAD_FORM) so the report's All Conv. column shows
+                # form submits rather than every tracked action.
+                cat_conv = _fetch_category_conversions(
+                    ads_client, customer_id, start_date, end_date, level,
+                    conversion_category, active_only=active_only)
+                for c in campaigns:
+                    key = (c["campaign_id"], c["ad_group_id"])
+                    c["all_conversions"] = round(cat_conv.get(key, 0.0), 2)
             results[slug] = campaigns
         except Exception as e:
             errors.append(f"{slug}: {e}")

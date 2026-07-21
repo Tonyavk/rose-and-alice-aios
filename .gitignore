@@ -38,6 +38,12 @@ data/*.log
 *.tmp
 *.bak
 
+# --- Runtime logs (launchd stdout/stderr — regenerated each run) ---
+logs/
+
+# --- Claude Code agent worktrees (temporary repo copies) ---
+.claude/worktrees/
+
 # --- Node (if applicable) ---
 node_modules/
 

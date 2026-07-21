@@ -182,8 +182,8 @@ REPORT_TEMPLATE = """<!DOCTYPE html>
 
     /* ── Narrative ── */
     .narrative {
-      background: #1a1a1a;
-      color: #f0f0f0;
+      background: #f0f0f0;
+      color: #000;
       padding: 20px 40px;
     }
     .narrative h2 {
@@ -191,14 +191,14 @@ REPORT_TEMPLATE = """<!DOCTYPE html>
       font-weight: 700;
       text-transform: uppercase;
       letter-spacing: 1px;
-      color: #888;
+      color: #000;
       margin-bottom: 10px;
     }
     .narrative p {
       font-size: 11px;
       line-height: 1.65;
       margin-bottom: 10px;
-      color: #e0e0e0;
+      color: #000;
     }
     .narrative p:last-child { margin-bottom: 0; }
 

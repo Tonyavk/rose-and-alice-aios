@@ -40,6 +40,10 @@ clients:
     campaign_objective: Brand Awareness, Lead Generation
     logo: alden.png  # MANUAL: drop PNG into config/client-logos/alden.png (Drive link is a folder)
     platforms:
+      google_ads:
+        customer_id: "6530211308"  # UCG BRAND ACCOUNT (Ultimate Care Group / Alden)
+        active_only: true  # report only currently-enabled campaigns
+        conversion_category: SUBMIT_LEAD_FORM  # All Conv. counts form submits only
       meta:
         account_id: "3686930434948954"
 

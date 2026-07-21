@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.aios.daily-brief</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/Users/tonyak/Documents/aios-starter-kit/.venv/bin/python</string>
+        <string>/Users/tonyak/Documents/aios-starter-kit/scripts/daily_brief.py</string>
+        <string>--deliver</string>
+        <string>--skip-if-exists</string>
+    </array>
+
+    <!-- Fires at 8am if the Mac is on, AND when you log in / power on
+         (RunAtLoad) so it still runs on mornings the Mac was off.
+         --skip-if-exists keeps it to one brief per day. -->
+    <key>StartCalendarInterval</key>
+    <dict>
+        <key>Hour</key>
+        <integer>8</integer>
+        <key>Minute</key>
+        <integer>0</integer>
+    </dict>
+
+    <key>RunAtLoad</key>
+    <true/>
+
+    <key>StandardOutPath</key>
+    <string>/Users/tonyak/Documents/aios-starter-kit/data/daily-brief.log</string>
+    <key>StandardErrorPath</key>
+    <string>/Users/tonyak/Documents/aios-starter-kit/data/daily-brief.log</string>
+
+    <key>WorkingDirectory</key>
+    <string>/Users/tonyak/Documents/aios-starter-kit</string>
+
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PATH</key>
+        <string>/usr/local/bin:/usr/bin:/bin</string>
+    </dict>
+</dict>
+</plist>
