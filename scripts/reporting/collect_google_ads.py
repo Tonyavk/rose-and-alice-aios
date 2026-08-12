@@ -75,6 +75,7 @@ def _fetch_campaigns(ads_client, customer_id, start_date, end_date, level="campa
             metrics.conversions,
             metrics.all_conversions,
             metrics.conversions_from_interactions_rate,
+            metrics.conversions_value,
             metrics.all_conversions_value
         FROM {from_clause}
         WHERE segments.date BETWEEN '{start_date}' AND '{end_date}'
@@ -109,6 +110,7 @@ def _fetch_campaigns(ads_client, customer_id, start_date, end_date, level="campa
             "all_conversions": round(row.metrics.all_conversions, 2),
             "conv_rate": round(row.metrics.conversions_from_interactions_rate * 100, 2),
             "conv_value": round(conv_value, 2),
+            "conversions_value": round(row.metrics.conversions_value, 2),
             "roas": roas,
         })
 
@@ -186,13 +188,23 @@ def collect(period=None):
         active_only = client["platforms"]["google_ads"].get("active_only", False)
         # Brand and shopping reports break down by ad group; others stay at campaign level
         level = "ad_group" if client.get("report_type") in ("brand", "shopping") else "campaign"
+        conversion_metric = client["platforms"]["google_ads"].get("conversion_metric")
         conversion_category = client["platforms"]["google_ads"].get("conversion_category")
         try:
             campaigns = _fetch_campaigns(ads_client, customer_id, start_date, end_date, level,
                                          active_only=active_only)
-            if conversion_category:
+            if conversion_metric == "conversions":
+                # Show Google's headline "Conversions" metric (only actions marked
+                # Primary / included in the account's Conversions goal), matching the
+                # number in the Google Ads UI, rather than all_conversions. Swap the
+                # conversion VALUE too so the count, value and cost-per columns (and
+                # any ROAS/AOV derived from them) all stay on the same headline basis.
+                for c in campaigns:
+                    c["all_conversions"] = round(c.get("conversions") or 0.0, 2)
+                    c["conv_value"] = round(c.get("conversions_value") or 0.0, 2)
+            elif conversion_category:
                 # Replace all_conversions with only this goal category's conversions
-                # (e.g. SUBMIT_LEAD_FORM) so the report's All Conv. column shows
+                # (e.g. SUBMIT_LEAD_FORM) so the report's Conv. column shows
                 # form submits rather than every tracked action.
                 cat_conv = _fetch_category_conversions(
                     ads_client, customer_id, start_date, end_date, level,

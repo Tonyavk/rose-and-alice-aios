@@ -229,6 +229,45 @@ REPORT_TEMPLATE = """<!DOCTYPE html>
     .narrative p { font-size: 10px; line-height: 1.5; margin-bottom: 6px; }
     .metric-key { padding-top: 8px; }
 {% endif %}
+{% if one_page %}
+    /* ── Force a single page for row-heavy clients (e.g. Alden): tighten row
+          height, hero and section chrome without dropping any data ── */
+    @page { margin: 2mm 0; }
+    .header { padding: 2px 40px; border-bottom-width: 2px; }
+    .logo-wrap { height: 56px; }
+    .logo-wrap img { max-height: 56px; max-width: 240px; }
+    .report-meta h1 { font-size: 15px; }
+    .report-meta .period { font-size: 10px; margin-top: 1px; }
+    .report-meta .prepared { font-size: 8px; margin-top: 1px; }
+    .footer { padding: 1px 40px; font-size: 6px; border-top: none; }
+    .metric { padding: 2px 28px; }
+    .metric-value { font-size: 16px; }
+    .metric-label { font-size: 8px; margin-top: 2px; }
+    .metric-sub { font-size: 8px; }
+    .section { padding: 2px 40px; }
+    .section-header { margin-bottom: 2px; }
+    .section-title { font-size: 12px; }
+    .section-summary { font-size: 9px; }
+    table { font-size: 7.5px; }
+    th { padding: 1px 8px; font-size: 6.5px; letter-spacing: 0.2px; }
+    td { padding: 0.9px 8px; }
+    .num { white-space: nowrap; }
+    tr[style*="background:#f5f5f5"] td { padding: 1px 8px !important; font-size: 7.5px !important; }
+    .metric-key { padding-top: 2px; font-size: 6.5px; line-height: 1.25; }
+{% endif %}
+{% if hero_pack %}
+    /* ── Pack hero tiles together on the left instead of stretching full width ── */
+    .hero { grid-template-columns: repeat({{ hero_cols }}, minmax(150px, max-content)); justify-content: start; }
+{% endif %}
+{% if hero_align_table %}
+    /* Line the first hero tile's number up with the section/table left edge (40px) */
+    .metric:first-child { padding-left: 40px; }
+{% endif %}
+{% if logo_big %}
+    /* ── Enlarge the client logo in the header ── */
+    .logo-wrap { height: 150px; }
+    .logo-wrap img { max-height: 150px; max-width: 420px; }
+{% endif %}
   </style>
 </head>
 <body>
@@ -265,7 +304,7 @@ REPORT_TEMPLATE = """<!DOCTYPE html>
   <div class="section">
     <div class="section-header">
       <div class="section-title">Google Ads</div>
-      {% if report_type != 'shopping' %}
+      {% if report_type != 'shopping' and not hide_section_summary %}
       <div class="section-summary">
         {{ google_totals.impressions | format_int }} impressions &nbsp;·&nbsp;
         {{ google_totals.clicks | format_int }} clicks &nbsp;·&nbsp;
@@ -281,8 +320,10 @@ REPORT_TEMPLATE = """<!DOCTYPE html>
           <th class="num">Impressions</th>
           <th class="num">Clicks</th>
           <th class="num">Avg CPC</th>
-          <th class="num">All Conv.</th>
+          {% if not hide_google_conversions %}
+          <th class="num">{{ conv_label }}</th>
           <th class="num wrap">Cost / Conv.</th>
+          {% endif %}
           <th class="num">Cost</th>
         </tr>
       </thead>
@@ -292,7 +333,7 @@ REPORT_TEMPLATE = """<!DOCTYPE html>
         {% if c.ad_group_name and not c.is_solo and c.campaign_name != ns.last_campaign %}
         {% set ns.last_campaign = c.campaign_name %}
         <tr style="background:#f5f5f5;">
-          <td colspan="7" style="font-weight:700;font-size:11px;padding:6px 8px;border-bottom:1px solid #ddd;">
+          <td colspan="{{ 5 if hide_google_conversions else 7 }}" style="font-weight:700;font-size:11px;padding:6px 8px;border-bottom:1px solid #ddd;">
             {{ c.campaign_name }}
           </td>
         </tr>
@@ -304,8 +345,10 @@ REPORT_TEMPLATE = """<!DOCTYPE html>
           <td class="num">{{ c.impressions | format_int }}</td>
           <td class="num">{{ c.clicks | format_int }}</td>
           <td class="num">${{ c.avg_cpc | format_2dp }}</td>
+          {% if not hide_google_conversions %}
           <td class="num">{{ c.all_conversions | format_conv }}</td>
           <td class="num">{% if c.cost_per_conv %}${{ c.cost_per_conv | format_2dp }}{% else %}—{% endif %}</td>
+          {% endif %}
           <td class="num">${{ c.cost | format_2dp }}</td>
         </tr>
         {% endfor %}
@@ -315,8 +358,10 @@ REPORT_TEMPLATE = """<!DOCTYPE html>
           <td class="num">{{ google_grand.impressions | format_int }}</td>
           <td class="num">{{ google_grand.clicks | format_int }}</td>
           <td class="num">${{ google_grand.avg_cpc | format_2dp }}</td>
+          {% if not hide_google_conversions %}
           <td class="num">{{ google_grand.all_conversions | format_conv }}</td>
           <td class="num">{% if google_grand.cost_per_conv %}${{ google_grand.cost_per_conv | format_2dp }}{% else %}—{% endif %}</td>
+          {% endif %}
           <td class="num">${{ google_grand.cost | format_2dp }}</td>
         </tr>
         {% endif %}
@@ -327,9 +372,9 @@ REPORT_TEMPLATE = """<!DOCTYPE html>
           <th>Ad group</th>
           <th class="num">Impressions</th>
           <th class="num">Clicks</th>
-          <th class="num">All Conv.</th>
-          <th class="num wrap">All Conv. Value</th>
-          <th class="num wrap">Cost / All Conv.</th>
+          <th class="num">{{ conv_label }}</th>
+          <th class="num wrap">{{ conv_label }} Value</th>
+          <th class="num wrap">Cost / {{ conv_label }}</th>
           <th class="num">Cost</th>
         </tr>
       </thead>
@@ -375,17 +420,19 @@ REPORT_TEMPLATE = """<!DOCTYPE html>
       <strong>Impressions</strong> — how many times our ads were shown to people &nbsp;·&nbsp;
       <strong>Clicks</strong> — amount of clicks to the website &nbsp;·&nbsp;
       <strong>Avg. CPC</strong> — average cost per click &nbsp;·&nbsp;
-      <strong>All Conv.</strong> — form submits, phone link clicks, and email link clicks (excludes any direct emails or phone calls without clicking on the website) &nbsp;·&nbsp;
+      {% if not hide_google_conversions %}
+      <strong>{{ conv_label }}</strong> — form submits, phone link clicks, and email link clicks (excludes any direct emails or phone calls without clicking on the website) &nbsp;·&nbsp;
       <strong>Cost / Conv.</strong> — cost per conversion &nbsp;·&nbsp;
+      {% endif %}
       <strong>Cost</strong> — total amount spent on ads
     </div>
     {% elif report_type == 'shopping' %}
     <div class="metric-key">
       <strong>Impr</strong> — how many times your ads were shown to people &nbsp;·&nbsp;
       <strong>Clicks</strong> — the number of clicks your ads received &nbsp;·&nbsp;
-      <strong>All Conv.</strong> — purchases made &nbsp;·&nbsp;
-      <strong>All Conv. Value</strong> — value of purchases made &nbsp;·&nbsp;
-      <strong>Cost / All Conv.</strong> — cost per purchase &nbsp;·&nbsp;
+      <strong>{{ conv_label }}</strong> — purchases made &nbsp;·&nbsp;
+      <strong>{{ conv_label }} Value</strong> — value of purchases made &nbsp;·&nbsp;
+      <strong>Cost / {{ conv_label }}</strong> — cost per purchase &nbsp;·&nbsp;
       <strong>Cost</strong> — total amount spent
     </div>
     {% endif %}
@@ -397,11 +444,11 @@ REPORT_TEMPLATE = """<!DOCTYPE html>
   <div class="section">
     <div class="section-header">
       <div class="section-title">Meta Ads</div>
-      {% if report_type != 'shopping' %}
+      {% if report_type != 'shopping' and not hide_section_summary %}
       <div class="section-summary">
         {% if report_type == 'brand' and meta_grand %}
         {{ meta_grand.reach | format_int }} reach &nbsp;·&nbsp;
-        {{ meta_grand.results | format_int }} results &nbsp;·&nbsp;
+        {% if hide_meta_results %}{{ meta_grand.landing_page_views | format_int }} landing page views{% else %}{{ meta_grand.results | format_int }} results{% endif %} &nbsp;·&nbsp;
         ${{ meta_grand.spend | format_2dp }}
         {% else %}
         {{ meta_totals.impressions | format_int }} impressions &nbsp;·&nbsp;
@@ -420,8 +467,10 @@ REPORT_TEMPLATE = """<!DOCTYPE html>
           <th class="num wrap">Landing Page Views</th>
           <th class="num wrap">Cost / Landing Page</th>
           <th class="num">Amount Spent</th>
+          {% if not hide_meta_results %}
           <th class="num wrap">Results<br><span style="font-weight:400;font-size:9px;color:#ccc;">Leads</span></th>
           <th class="num wrap">Cost / Result</th>
+          {% endif %}
         </tr>
       </thead>
       <tbody>
@@ -430,7 +479,7 @@ REPORT_TEMPLATE = """<!DOCTYPE html>
         {% if c.adset_name and not c.is_solo and c.campaign_name != ns.last_campaign %}
         {% set ns.last_campaign = c.campaign_name %}
         <tr style="background:#f5f5f5;">
-          <td colspan="7" style="font-weight:700;font-size:11px;padding:6px 8px;border-bottom:1px solid #ddd;">
+          <td colspan="{{ 5 if hide_meta_results else 7 }}" style="font-weight:700;font-size:11px;padding:6px 8px;border-bottom:1px solid #ddd;">
             {{ c.campaign_name }}
           </td>
         </tr>
@@ -443,8 +492,10 @@ REPORT_TEMPLATE = """<!DOCTYPE html>
           <td class="num">{{ c.landing_page_views | format_int }}</td>
           <td class="num">{% if c.cost_per_lpv %}${{ c.cost_per_lpv | format_2dp }}{% else %}—{% endif %}</td>
           <td class="num">${{ c.spend | format_2dp }}</td>
+          {% if not hide_meta_results %}
           <td class="num">{% if c.results > 0 %}{{ c.results }}{% else %}—{% endif %}</td>
           <td class="num">{% if c.cost_per_result %}${{ c.cost_per_result | format_2dp }}{% else %}—{% endif %}</td>
+          {% endif %}
         </tr>
         {% endfor %}
         {% if meta_grand %}
@@ -454,8 +505,10 @@ REPORT_TEMPLATE = """<!DOCTYPE html>
           <td class="num">{{ meta_grand.landing_page_views | format_int }}</td>
           <td class="num">{% if meta_grand.cost_per_lpv %}${{ meta_grand.cost_per_lpv | format_2dp }}{% else %}—{% endif %}</td>
           <td class="num">${{ meta_grand.spend | format_2dp }}</td>
+          {% if not hide_meta_results %}
           <td class="num">{% if meta_grand.results > 0 %}{{ meta_grand.results | format_int }}{% else %}—{% endif %}</td>
           <td class="num">{% if meta_grand.cost_per_result %}${{ meta_grand.cost_per_result | format_2dp }}{% else %}—{% endif %}</td>
+          {% endif %}
         </tr>
         {% endif %}
       </tbody>
@@ -573,7 +626,7 @@ REPORT_TEMPLATE = """<!DOCTYPE html>
   <!-- Footer -->
   <div class="footer">
     <div><strong>Rose and Alice Creative</strong> &nbsp;·&nbsp; roseandalicecreative.com</div>
-    <div>{{ period_label }} &nbsp;·&nbsp; Generated {{ generated_date }}</div>
+    <div>{{ period_label }}{% if show_generated_date %} &nbsp;·&nbsp; Generated {{ generated_date }}{% endif %}</div>
   </div>
 
 </body>
@@ -1070,8 +1123,15 @@ def generate(client_slug, period=None, html_only=False, conn=None, use_saved_sum
     stem = f"{client_slug}-{report_type}" if report_type else client_slug
     summary_path = out_dir / f"{stem}-summary.txt"
 
-    # Get narrative — from saved file or Claude
-    if use_saved_summary and summary_path.exists():
+    # Get narrative — from saved file or Claude.
+    # The Performance Summary is OFF by default for all reports (and the Claude
+    # call that writes it is skipped). Set include_summary: true on a client to
+    # bring it back.
+    include_summary = client.get("include_summary", False)
+    if not include_summary:
+        narrative = None
+        print(f"  Performance Summary disabled for {client_slug} (include_summary: false)", file=sys.stderr)
+    elif use_saved_summary and summary_path.exists():
         narrative = summary_path.read_text(encoding="utf-8").strip()
         print(f"  Using saved summary: {summary_path}", file=sys.stderr)
     else:
@@ -1096,6 +1156,55 @@ def generate(client_slug, period=None, html_only=False, conn=None, use_saved_sum
         narrative = narrative.strip()
     logo_b64 = _load_logo_b64(client_slug)
     hero_metrics = _build_hero_metrics(google_rows, meta_rows, report_type)
+    # Per-client (brand): split the combined Conversions tile into Google-only
+    # conversions plus a separate Meta-leads tile (e.g. Shed Specialists, where
+    # Meta tracks real leads). Otherwise Conversions double-counts Google conv +
+    # Meta results. Config: hero_meta_leads_label: "Consumer Leads".
+    meta_leads_label = client.get("hero_meta_leads_label")
+    if meta_leads_label and report_type == "brand":
+        g_conv = sum(float(r.get("all_conversions") or r.get("conversions") or 0) for r in google_rows)
+        m_leads = sum(int(r.get("results") or 0) for r in meta_rows)
+        split = []
+        for m in hero_metrics:
+            if m["label"] == "Conversions":
+                split.append({**m, "value": f"{int(round(g_conv)):,}"})
+                split.append({"value": f"{int(m_leads):,}", "label": meta_leads_label, "sub": None})
+            else:
+                split.append(m)
+        hero_metrics = split
+    # Per-client: drop the Conversions hero tile (e.g. Childlife, awareness-only)
+    if client.get("hero_hide_conversions"):
+        hero_metrics = [m for m in hero_metrics if m["label"] != "Conversions"]
+    # Per-client: drop the ROAS hero tile (shopping, e.g. Aqua Spa)
+    if client.get("hero_hide_roas"):
+        hero_metrics = [m for m in hero_metrics if m["label"] != "ROAS"]
+    # Per-client: strip the small sub-labels under the hero numbers
+    if client.get("hero_hide_subs"):
+        for m in hero_metrics:
+            m["sub"] = None
+    # Per-client: add a sub-line under the Conversions tile (e.g. "Google Enquiries")
+    conv_sub = client.get("hero_conversions_sub")
+    if conv_sub:
+        for m in hero_metrics:
+            if m["label"] == "Conversions":
+                m["sub"] = conv_sub
+    # Per-client: manual hero tiles whose value is supplied per period (not from
+    # the data), e.g. Shed Specialists "Franchise Enquiries". Inserted before the
+    # Total Spend tile so Total Spend stays last. Config:
+    #   hero_manual_metrics:
+    #     - label: Franchise Enquiries
+    #       values: { "2026-07": 6 }
+    manual_specs = client.get("hero_manual_metrics") or []
+    manual_tiles = []
+    for spec in manual_specs:
+        val = (spec.get("values") or {}).get(period)
+        if val is not None:
+            manual_tiles.append({"value": f"{int(val):,}", "label": spec["label"],
+                                 "sub": spec.get("sub")})
+    if manual_tiles:
+        insert_at = next((i for i, m in enumerate(hero_metrics)
+                          if m["label"] == "Total Spend"), len(hero_metrics))
+        hero_metrics = hero_metrics[:insert_at] + manual_tiles + hero_metrics[insert_at:]
 
     google_totals = _totals(google_rows, "cost") if google_rows else None
     meta_totals = _totals(meta_rows, "spend") if meta_rows else None
@@ -1214,6 +1323,18 @@ def generate(client_slug, period=None, html_only=False, conn=None, use_saved_sum
         "meta_grand": meta_grand,
         "narrative": narrative,
         "narrative_paragraphs": narrative.split("\n\n") if narrative else [],
+        "one_page": client.get("one_page", False),
+        # Per-client presentation flags (default to the original shared look so
+        # only clients that opt in — e.g. Alden — get the customised template).
+        "conv_label": ("Conv." if client.get("platforms", {}).get("google_ads", {})
+                       .get("conversion_metric") == "conversions" else "All Conv."),
+        "hide_meta_results": client.get("hide_meta_results", False),
+        "show_generated_date": client.get("show_generated_date", False),
+        "hero_pack": client.get("hero_pack", False),
+        "hero_align_table": client.get("hero_align_table", True),
+        "hide_section_summary": client.get("hide_section_summary", False),
+        "hide_google_conversions": client.get("hide_google_conversions", False),
+        "logo_big": client.get("logo_big", False),
         "generated_date": datetime.now().strftime("%d %B %Y"),
     }
 

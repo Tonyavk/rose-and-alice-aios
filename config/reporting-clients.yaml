@@ -4,18 +4,24 @@ clients:
     report_type: shopping
     industry: Beauty & Skincare
     campaign_objective: Brand Awareness, Sales
+    include_summary: false  # no Performance Summary on Vivéa's report
     logo: vivea-skincare.png
     platforms:
       meta:
         account_id: "1275482973765975"
       google_ads:
         customer_id: "4174717031"
+        # Google table shows headline Conversions (Conv.) — Tonya confirmed Google's
+        # true purchase count is the headline figure (~2), not All Conversions (~729).
+        # This also flows to hero Purchases / AOV / ROAS so the report stays consistent.
+        conversion_metric: conversions
 
   - name: Aqua Spa
     slug: aquaspa
     report_type: shopping
     industry: Health & Wellness
     campaign_objective: Service Bookings
+    hero_hide_roas: true  # drop the ROAS hero tile
     logo: aquaspa.png
     platforms:
       meta:
@@ -26,6 +32,12 @@ clients:
     report_type: brand
     industry: Construction & Trades
     campaign_objective: Lead Generation
+    # Same custom structure as Childlife Essentials
+    hero_hide_conversions: true  # drop the Conversions hero tile (awareness-only)
+    hero_pack: true  # pack the remaining hero tiles (Website Views + Total Spend) close together on the left
+    hero_hide_subs: true  # remove the small sub-labels under the hero numbers
+    hide_meta_results: true  # drop the Meta Results / Cost-per-Result columns
+    hide_section_summary: true  # remove the grey summary line above the table
     logo: alpha-1-builders.png
     platforms:
       meta:
@@ -38,12 +50,15 @@ clients:
     report_type: brand
     industry: Aged Care
     campaign_objective: Brand Awareness, Lead Generation
+    include_summary: false  # no Performance Summary — keep the report to one page
+    one_page: true  # tighten row height so all ad groups + ad sets fit on a single page
+    hide_meta_results: true  # drop the Meta Results / Cost-per-Result columns (Alden's Meta is awareness, no tracked results)
     logo: alden.png  # MANUAL: drop PNG into config/client-logos/alden.png (Drive link is a folder)
     platforms:
       google_ads:
         customer_id: "6530211308"  # UCG BRAND ACCOUNT (Ultimate Care Group / Alden)
         active_only: true  # report only currently-enabled campaigns
-        conversion_category: SUBMIT_LEAD_FORM  # All Conv. counts form submits only
+        conversion_metric: conversions  # CONV. column = Google's headline Conversions (Primary goals, matches the Google Ads UI)
       meta:
         account_id: "3686930434948954"
 
@@ -52,6 +67,11 @@ clients:
     report_type: brand
     industry: Beauty & Cosmetic Tattooing
     campaign_objective: Service Bookings
+    hero_hide_conversions: true  # drop the Conversions hero tile
+    hero_pack: true  # pack Website Views + Total Spend together on the left
+    hero_hide_subs: true  # remove the hero sub-labels ("Google clicks…", "All platforms")
+    hide_section_summary: true  # remove the grey "impressions · clicks · spend" line above the table
+    hide_google_conversions: true  # remove the All Conv. and Cost / Conv. columns from the Google table
     logo: brows-and-beyond.png  # MANUAL: drop PNG into config/client-logos/brows-and-beyond.png (Drive link is a folder)
     platforms:
       google_ads:
@@ -62,6 +82,13 @@ clients:
     report_type: brand
     industry: Children's Health Products
     campaign_objective: Sales
+    include_summary: false  # no Performance Summary
+    hero_hide_conversions: true  # drop the Conversions hero tile (awareness-only, always 0)
+    hero_pack: true  # pack the remaining hero tiles (Website Views + Total Spend) close together on the left
+    hero_align_table: true  # line the first hero tile up with the table's left edge
+    hero_hide_subs: true  # remove the small sub-labels under the hero numbers
+    hide_meta_results: true  # drop the Meta Results / Cost-per-Result columns (awareness-only)
+    hide_section_summary: true  # remove the grey "reach · landing page views · spend" line above the table
     logo: childlife-essentials.png
     platforms:
       meta:
@@ -72,6 +99,10 @@ clients:
     report_type: brand
     industry: Relocation Services
     campaign_objective: Lead Generation
+    include_summary: false  # no Performance Summary
+    hero_align_table: true  # line the Website Views tile up with the table's left edge
+    hide_meta_results: true  # drop the Meta Results / Cost-per-Result columns
+    logo_big: true  # enlarge the logo in the header
     logo: moving-on.png
     platforms:
       meta:
@@ -84,6 +115,8 @@ clients:
     report_type: shopping
     industry: Automotive
     campaign_objective: Sales
+    include_summary: false  # no Performance Summary
+    hero_align_table: true  # line the Purchases tile up with the table's left edge
     logo: nz-vrod-parts.png
     platforms:
       meta:
@@ -96,6 +129,10 @@ clients:
     report_type: brand
     industry: Beauty & Wellness
     campaign_objective: Sales
+    include_summary: false  # no Performance Summary
+    hero_align_table: true  # line the Website Views tile up with the table's left edge
+    hero_hide_subs: true  # remove the sub-labels under the hero numbers ("Google clicks…", "All platforms")
+    hide_section_summary: true  # remove the grey "impressions · clicks · spend" line above the table
     logo: sparsh.png
     platforms:
       google_ads:
@@ -106,6 +143,13 @@ clients:
     report_type: brand
     industry: Construction & Trades
     campaign_objective: Lead Generation
+    hide_section_summary: true  # remove the grey "impressions · clicks · spend" / "reach · results · spend" lines (duplicated in the grand totals)
+    hero_meta_leads_label: Consumer Leads  # split hero Conversions into Google All Conv. + a separate Meta-leads tile labelled "Consumer Leads"
+    hero_conversions_sub: Google Enquiries  # sub-line under the Conversions hero number
+    hero_manual_metrics:  # manually-entered hero tiles — add a new period line each month
+      - label: Franchise Enquiries
+        values:
+          "2026-07": 6
     logo: shed-specialists.png
     platforms:
       meta:

@@ -200,7 +200,25 @@ Example: `/share the daily brief system`
 
 ### ReportingOS — Monthly Client Reports
 - Scripts: `scripts/reporting/`
-- Client config: `config/reporting-clients.yaml` (add clients here — slug, `report_type`, Meta account ID, Google Ads customer ID; optional `active_only: true` under a client's `google_ads` block limits the report to currently-enabled campaigns, and optional `conversion_category: SUBMIT_LEAD_FORM` makes the All Conv. column count only that goal category — both used for Alden)
+- Client config: `config/reporting-clients.yaml` (add clients here — slug, `report_type`, Meta account ID, Google Ads customer ID). Optional per-client flags:
+  - `active_only: true` (under `google_ads`) — report only currently-enabled campaigns
+  - `conversion_metric: conversions` (under `google_ads`) — the CONV. column shows Google's **headline Conversions** (Primary-goal actions, matches the Google Ads UI) instead of `all_conversions`; alternatively `conversion_category: SUBMIT_LEAD_FORM` counts only that one goal category
+  - **Performance Summary is OFF on all reports by default** (and the Claude call that writes it is skipped); set `include_summary: true` on a client to bring the narrative back
+  - **The first hero tile is aligned to the table's left edge on all reports by default** (`hero_align_table`); set `hero_align_table: false` on a client to revert to the old inset
+  - The footer "Generated {date}" line is **hidden on all reports by default**; set `show_generated_date: true` on a client to bring it back
+  - `one_page: true` — force everything onto a single A4 page by tightening row height/chrome (for row-heavy accounts); this is also what shrinks the header/footer and enlarges the logo
+  - `hide_meta_results: true` — drop the Meta **Results** and **Cost/Result** columns (for awareness accounts with no tracked Meta results)
+  - `logo_big: true` — enlarge the client logo in the header
+  - `hero_hide_conversions: true` — drop the Conversions hero tile (awareness accounts where it's always 0)
+  - `hero_hide_subs: true` — remove the small grey sub-labels under the hero numbers
+  - `hero_pack: true` — pack the hero tiles together on the left instead of stretching full width
+  - `hide_section_summary: true` — remove the grey "reach · … · spend" summary line to the right of each section title
+  - `hide_google_conversions: true` — remove the **All Conv.** and **Cost / Conv.** columns from the (brand) Google table
+  - `hero_meta_leads_label: "<label>"` — split the combined Conversions hero into Google-only conversions plus a separate Meta-leads tile with this label (brand; e.g. Shed Specialists "Consumer Leads")
+  - `hero_conversions_sub: "<text>"` — sub-line under the Conversions hero number (e.g. "Google Enquiries")
+  - `hero_manual_metrics:` — list of hero tiles with values supplied per period (not from data); each has `label` and `values: {"YYYY-MM": N}`. Insert before Total Spend. Used for Shed's manual "Franchise Enquiries"
+  - The Google conversion column auto-labels **Conv.** when `conversion_metric: conversions` is set, otherwise **All Conv.**
+  - Except the three global defaults noted above (no summary, hero aligned, no generated date), flags are per-client and don't affect other clients
 - Report types: each client is `report_type: shopping` or `report_type: brand` — filenames carry the type as a suffix so the two kinds never collide
 - Logos: `config/client-logos/{slug}.png`
 - Output: `outputs/client-reports/YYYY-MM/{slug}-{type}.pdf` (e.g. `vivea-skincare-shopping.pdf`)
@@ -211,11 +229,66 @@ Example: `/share the daily brief system`
 - Meta: pulled at **ad-set level**, shown campaign → ad set (alphabetical); columns Reach · Landing Page Views · Cost/Landing Page · Amount Spent · Results · Cost/Result, plus grand-total row
 - Hero: Website Views (Google clicks + Meta landing page views) · Conversions · Total Spend
 
+**Alden — finalised report template** (locked in as standard, Aug 2026). Alden's brand report is customised via config flags above:
+- Google CONV. column = headline Conversions (`conversion_metric: conversions`), Cost/Conv. and the hero Conversions figure follow from it
+- Meta table trimmed to Reach · Landing Page Views · Cost/Landing Page · Amount Spent (Results / Cost-per-Result columns removed)
+- No Performance Summary (`include_summary: false`); single page (`one_page: true`); minimal footer with the "Generated {date}" line removed; enlarged logo; enlarged tables to fill the page
+- Hero row: Website Views · Conversions · Total Spend (three tiles — no Conversion Rate)
+- Meta token expired 30 Jul 2026, refreshed 4 Aug; next expiry ~early Oct — regenerate at Meta Business Manager before it lapses or the Meta half comes back empty
+
+**Childlife Essentials — finalised report template** (locked in as standard, Aug 2026). Brand report, **Meta-only** (no Google account). Customised via config flags:
+- No Performance Summary (`include_summary: false`); no "Generated {date}" footer line (now the global default)
+- Meta table trimmed to Reach · Landing Page Views · Cost/Landing Page · Amount Spent (`hide_meta_results: true`)
+- Hero = two tiles only — Website Views · Total Spend — with the Conversions tile dropped (`hero_hide_conversions: true`), sub-labels removed (`hero_hide_subs: true`), and packed to the left aligned with the table (`hero_pack: true`)
+- Section summary line above the table removed (`hide_section_summary: true`)
+
+**Alpha 1 Builders — finalised report template** (locked in as standard, Aug 2026). Brand report — **same structure as Childlife** (`hero_hide_conversions`, `hero_pack`, `hero_hide_subs`, `hide_meta_results`, `hide_section_summary`).
+- Has a Google account configured (customer 6775944314) BUT the DB only holds May Google data — June/July Google pulls returned nothing, so recent reports render Meta-only. Tonya accepted the Meta-only July view; if a month should show Google, check the account is running / re-collect before finalising.
+
+**Sparsh — finalised report template** (locked in as standard, Aug 2026). Brand report, **Google-only** (no Meta account). Customised via config flags:
+- No Performance Summary (`include_summary: false`); no "Generated {date}" footer line (global default)
+- Hero = three tiles (Website Views · Conversions · Total Spend) with sub-labels removed (`hero_hide_subs: true`) and the first tile aligned to the table's left edge (`hero_align_table: true`) — tiles stay spread full-width (NOT packed like Childlife)
+- Section summary line above the table removed (`hide_section_summary: true`)
+- Google conversion column left on the default All Conv. basis (no `conversion_metric` override)
+
+**Brows & Beyond — finalised report template** (locked in as standard, Aug 2026). Brand report, **Google-only** (no Meta account). Customised via config flags:
+- Hero = two tiles (Website Views · Total Spend) — Conversions tile dropped (`hero_hide_conversions`), packed left (`hero_pack`), sub-labels removed (`hero_hide_subs`)
+- Section-summary line removed (`hide_section_summary`)
+- Google table trimmed to Ad Group · Impressions · Clicks · Avg CPC · Cost — All Conv. and Cost/Conv. columns removed (`hide_google_conversions: true`)
+
+**Moving On — finalised report template** (locked in as standard, Aug 2026). Brand report, **Google + Meta**. Customised via config flags:
+- No Performance Summary (`include_summary: false`); no "Generated {date}" footer line (global default)
+- Website Views hero tile aligned to the table's left edge (`hero_align_table: true`); hero sub-labels kept (unlike Childlife/Sparsh)
+- Meta table trimmed to Reach · Landing Page Views · Cost/Landing Page · Amount Spent (`hide_meta_results: true`)
+- Enlarged logo (`logo_big: true`)
+- Google conversion column left on the default All Conv. basis; section-summary lines kept
+
+**The Shed Specialists Co. — finalised report template** (locked in as standard, Aug 2026). Brand report, **Google + Meta** (Meta tracks real leads). Customised via config flags:
+- Section-summary lines removed (`hide_section_summary: true`) — they duplicated the grand totals
+- Hero (5 tiles): Website Views · **Conversions** (Google All Conv. only, with a "Google Enquiries" sub-line via `hero_conversions_sub`) · **Consumer Leads** (Meta results, via `hero_meta_leads_label: Consumer Leads`) · **Franchise Enquiries** (manual value) · Total Spend. The Conversions/Consumer-Leads split stops the old double-count (Google conv + Meta leads were summed into one Conversions tile)
+- ⚠️ **Franchise Enquiries is a MANUAL number Tonya supplies each month** — no data source. Add a period line under `hero_manual_metrics[0].values` in the config before generating (e.g. `"2026-08": 9`). If the month has no entry, the tile is omitted. July 2026 = 6.
+- Meta Results/Cost-per-Result columns KEPT (this account has real lead results, unlike the awareness accounts)
+
 **Shopping reports** (built out — same one-page polish, ecommerce focus):
 - Google: **ad-group level**; columns Impressions · Clicks · All Conv. · All Conv. Value · Cost/All Conv. · Cost, plus grand-total row and metric key
 - Meta: **ad-set level**; columns Reach · Website Purchases · Avg. Purchase Value · Cost/Purchase · Amount Spent, plus grand-total row
 - Hero: Purchases · AOV · Total Spend · ROAS
 - Grey section-summary lines hidden; summary uses ecommerce framing (revenue/ROAS/purchases)
+- Google conversion columns auto-label **Conv. / Conv. Value / Cost / Conv.** when `conversion_metric: conversions` is set, otherwise **All Conv. / All Conv. Value / Cost / All Conv.**
+
+**Vivéa Skincare — finalised report template** (locked in as standard, Aug 2026). Vivéa's shopping report is customised via config flags:
+- Google conversion columns = headline Conversions (`conversion_metric: conversions`) — Tonya confirmed Google's true purchase count is the headline figure (~2/mo), NOT All Conversions (~729, which over-counts). Hero Purchases / AOV / ROAS follow the headline basis, so July shows 30 purchases / 0.76x ROAS rather than the inflated 757 / 1.44x
+- No Performance Summary (`include_summary: false`); "Generated {date}" line removed from the footer (now the global default)
+- Otherwise standard shopping layout (not one-page-forced, standard sizing)
+
+**NZ VRod Parts — finalised report template** (locked in as standard, Aug 2026). Shopping report, **Google + Meta**. Customised via config flags:
+- No Performance Summary (`include_summary: false`); no "Generated {date}" footer line (global default)
+- Purchases hero tile aligned to the table's left edge (`hero_align_table: true`); hero sub-labels and section-summary lines kept
+- Google conversion columns left on the default All Conv. basis (Tonya chose NOT to switch to headline Conversions — ROAS shown at 12.29x)
+
+**World Class Fabrication — finalised report template** (locked in as standard, Aug 2026). Shopping report, **Meta-only** (no Google account). Uses the global defaults only — no per-client flags:
+- No Performance Summary and Purchases hero tile aligned to the table (both now global defaults); no "Generated {date}" line (global default)
+- Standard shopping Meta layout otherwise; note `campaign_objective` is Lead Generation but it runs as a shopping report (Purchases/AOV/ROAS framing) — left as-is per Tonya
 
 **Both types:**
 - Summary: factual **month-over-month** comparison from the database + a clearly-hedged general industry guide + one positive highlight + two short first-person (Tonya's voice) recommendations — one concrete move, one positive/observational; plain NZ English, no negatives, no sensationalism, no em dashes
