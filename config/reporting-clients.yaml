@@ -152,6 +152,7 @@ clients:
       - label: Franchise Enquiries
         values:
           "2026-07": 6
+          "2026-08": 7
     logo: shed-specialists.png
     platforms:
       meta:
