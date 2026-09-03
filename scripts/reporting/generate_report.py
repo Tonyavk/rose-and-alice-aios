@@ -10,6 +10,7 @@ Usage:
 """
 
 import sys
+import math
 import base64
 import argparse
 from datetime import datetime, timezone
@@ -692,7 +693,7 @@ def _build_hero_metrics(google_rows, meta_rows, report_type=None):
         return [
             {"value": f"{website_views:,}", "label": "Website Views",
              "sub": "Google clicks + Meta landing page views"},
-            {"value": f"{int(conversions):,}", "label": "Conversions", "sub": None},
+            {"value": f"{math.ceil(conversions):,}", "label": "Conversions", "sub": None},
             {"value": f"${total_spend:,.0f}", "label": "Total Spend", "sub": "All platforms"},
         ]
 
@@ -713,7 +714,7 @@ def _build_hero_metrics(google_rows, meta_rows, report_type=None):
         aov = revenue / purchases if purchases else 0
         roas = revenue / total_spend if total_spend else 0
         return [
-            {"value": f"{int(purchases):,}", "label": "Purchases", "sub": None},
+            {"value": f"{math.ceil(purchases):,}", "label": "Purchases", "sub": None},
             {"value": (f"${aov:,.2f}" if aov else "—"), "label": "AOV", "sub": "Average order value"},
             {"value": f"${total_spend:,.0f}", "label": "Total Spend", "sub": "All platforms"},
             {"value": (f"{roas:.2f}x" if roas else "—"), "label": "ROAS", "sub": None},
@@ -1077,7 +1078,10 @@ def _make_template():
     env = Environment()
     env.filters["format_int"] = lambda v: f"{int(v or 0):,}"
     env.filters["format_2dp"] = lambda v: f"{float(v or 0):,.2f}"
-    env.filters["format_conv"] = lambda v: f"{float(v or 0):.1f}" if float(v or 0) > 0 else "—"
+    # Conversions round UP to the next whole number (ceiling) — Google reports
+    # fractional values (e.g. 6.1 or 6.9) which we always present as the higher
+    # whole number (7).
+    env.filters["format_conv"] = lambda v: f"{math.ceil(float(v or 0)):,}" if float(v or 0) > 0 else "—"
 
     return env.from_string(REPORT_TEMPLATE)
 
@@ -1114,6 +1118,16 @@ def generate(client_slug, period=None, html_only=False, conn=None, use_saved_sum
     finally:
         if close_conn:
             conn.close()
+
+    # Exclude Meta ad sets whose name contains any of the client's patterns
+    # (e.g. meta_exclude_adsets: event). Removed everywhere — table, totals, hero.
+    exclude = client.get("meta_exclude_adsets")
+    if exclude:
+        patterns = [exclude] if isinstance(exclude, str) else list(exclude)
+        patterns = [str(p).lower() for p in patterns]
+        keep = lambda r: not any(p in (r.get("adset_name") or "").lower() for p in patterns)
+        meta_rows = [r for r in meta_rows if keep(r)]
+        prev_meta_rows = [r for r in prev_meta_rows if keep(r)]
 
     # Determine output paths early (needed for saved summary logic)
     # Filenames carry the report type so shopping/brand reports never collide.

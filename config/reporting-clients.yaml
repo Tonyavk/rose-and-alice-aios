@@ -53,11 +53,12 @@ clients:
     include_summary: false  # no Performance Summary — keep the report to one page
     one_page: true  # tighten row height so all ad groups + ad sets fit on a single page
     hide_meta_results: true  # drop the Meta Results / Cost-per-Result columns (Alden's Meta is awareness, no tracked results)
+    meta_exclude_adsets: event  # drop any Meta ad set with "event" in the name (the Open Home event ad sets)
     logo: alden.png  # MANUAL: drop PNG into config/client-logos/alden.png (Drive link is a folder)
     platforms:
       google_ads:
         customer_id: "6530211308"  # UCG BRAND ACCOUNT (Ultimate Care Group / Alden)
-        active_only: true  # report only currently-enabled campaigns
+        active_only: true  # report only currently-enabled campaigns. NOTE: Aug 2026 was a one-off manual exception that INCLUDED the paused Madison (Retirement Village) campaign — that report is already finalised. Do NOT re-collect Aug 2026 for Alden or Madison will drop out.
         conversion_metric: conversions  # CONV. column = Google's headline Conversions (Primary goals, matches the Google Ads UI)
       meta:
         account_id: "3686930434948954"
@@ -117,6 +118,7 @@ clients:
     campaign_objective: Sales
     include_summary: false  # no Performance Summary
     hero_align_table: true  # line the Purchases tile up with the table's left edge
+    meta_exclude_adsets: post  # drop any Meta ad set with "post" in the name (boosted posts)
     logo: nz-vrod-parts.png
     platforms:
       meta:

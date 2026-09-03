@@ -217,8 +217,11 @@ Example: `/share the daily brief system`
   - `hero_meta_leads_label: "<label>"` — split the combined Conversions hero into Google-only conversions plus a separate Meta-leads tile with this label (brand; e.g. Shed Specialists "Consumer Leads")
   - `hero_conversions_sub: "<text>"` — sub-line under the Conversions hero number (e.g. "Google Enquiries")
   - `hero_manual_metrics:` — list of hero tiles with values supplied per period (not from data); each has `label` and `values: {"YYYY-MM": N}`. Insert before Total Spend. Used for Shed's manual "Franchise Enquiries"
+  - `meta_exclude_adsets: <keyword>` (client top level) — drop any Meta ad set whose name contains the keyword (case-insensitive), removed from the table, totals AND hero. Accepts a string or a list. E.g. Alden `event` (Open Home events), NZ VRod `post` (boosted posts)
   - The Google conversion column auto-labels **Conv.** when `conversion_metric: conversions` is set, otherwise **All Conv.**
   - Except the three global defaults noted above (no summary, hero aligned, no generated date), flags are per-client and don't affect other clients
+- **Google conversions always round UP** (ceiling) to a whole number everywhere — per-campaign, grand total, and hero. Google reports fractional conversions (e.g. 6.1 or 6.9) and Tonya wants them shown as the next whole number (7). Global, not a per-client flag.
+- `active_only` filters at **collection** time (the collector only pulls ENABLED campaigns when true), so changing it needs a re-collect to take effect. Alden's Aug 2026 was a one-off manual exception with `active_only: false` to include the paused Madison (Retirement Village) campaign — do NOT re-collect Aug 2026 for Alden or it drops out
 - Report types: each client is `report_type: shopping` or `report_type: brand` — filenames carry the type as a suffix so the two kinds never collide
 - Logos: `config/client-logos/{slug}.png`
 - Output: `outputs/client-reports/YYYY-MM/{slug}-{type}.pdf` (e.g. `vivea-skincare-shopping.pdf`)
